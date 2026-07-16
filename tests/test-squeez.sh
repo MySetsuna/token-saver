@@ -33,6 +33,7 @@ if [ "${OS:-}" = "Windows_NT" ]; then
 fi
 [ "$(grep -c 'token-saver:begin' "$SANDBOX/.claude/CLAUDE.md")" = "1" ] || fail "CLAUDE.md 注入不幂等"
 grep -q "微言大义" "$SANDBOX/.claude/CLAUDE.md" || fail "文言协议未默认注入"
+grep -qi "caveman" "$SANDBOX/.claude/CLAUDE.md" || fail "caveman 协议未默认注入"
 h2=$(md5sum "$SANDBOX/.claude/CLAUDE.md")
 HOME="$SANDBOX" bash install.sh --claude-code > /dev/null   # 第三次，验证字节级幂等
 [ "$h2" = "$(md5sum "$SANDBOX/.claude/CLAUDE.md")" ] || fail "注入非字节级幂等"

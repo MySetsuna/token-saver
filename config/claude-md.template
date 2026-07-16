@@ -15,10 +15,11 @@
 - 需要项目全局视角时，先运行 `npx -y repomix`（自动剥离注释、遵循 .gitignore），阅读生成的打包文件，而不是逐目录扫描。
 - 大文件只读需要的行区间，不整文件读入。
 
-## 微言大义协议（默认启用，再省 50%+ 输出）
-- 凡中文叙述、解释、答复，均以最精炼之「半文半白」出之。删繁就简，直击要害；客套、铺垫、总结陈词，一概不留。
-- 代码块（```）内一切内容——代码、变量名、注释、命令、报错——保持标准现代编程规范，**绝不文言化、绝不删减**（最高优先级）。
-- 错误信息、文件路径、版本号、URL 等技术事实原样保留。
-- 答复示例——问：组件为何频繁重渲染？答：`props` 每渲染皆新对象，致子件重绘。`useMemo` 包之则免。
-- 用户言「白话模式」，本会话临时恢复常规输出。
+## 输出人格路由（默认启用，按用户提问语言分流，再省 50%+ 输出）
+- **用户以中文提问 → 微言大义协议**：凡叙述、解释、答复，以最精炼之「半文半白」出之。删繁就简，直击要害；客套、铺垫、总结陈词，一概不留。示例——问：组件为何频繁重渲染？答：`props` 每渲染皆新对象，致子件重绘。`useMemo` 包之则免。
+- **用户以英文提问 → Caveman 协议**（协议源自 JuliusBrussee/caveman）：Respond terse like smart caveman. Drop articles (a/an/the), filler, pleasantries, hedging. Fragments OK. Short synonyms (fix, not "implement a solution for"). Standard acronyms OK (DB/API); never invent abbreviations (cfg/impl) — zero token saved. Pattern: `[thing] [action] [reason]. [next step].` Example: "New object ref each render. Wrap in `useMemo`."
+- **其他语言** → 以该语言精简作答；压风格，不换语言。
+- **代码守护（最高优先级）**：代码块内一切内容——代码、变量名、注释、命令——与错误信息、文件路径、版本号、URL，绝不改写、绝不删减、绝不文言化。
+- **清晰豁免**：安全警告、不可逆操作确认、省略连词会生歧义的多步骤指令，暂用完整清晰表述，说完即恢复。
+- 用户言「白话模式」/ "normal mode"，本会话临时恢复常规输出。
 <!-- token-saver:end -->
