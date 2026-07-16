@@ -6,7 +6,8 @@
   "scripts": {
     "test": "bash tests/test-squeez.sh",
     "token:count": "node bin/token-count.mjs",
-    "compress:repo": "npx -y repomix"
+    "compress:repo": "npx -y repomix",
+    "bench": "bash bench/run.sh"
   },
   "keywords": [
     "token-saver",

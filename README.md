@@ -123,33 +123,30 @@ echo test | squeez
 
 ---
 
-## 📊 效果对比
+## 📊 效果对比（真实基准，可复现）
 
-### 修改一个组件前后的 Token 消耗
+数字由 `pnpm bench` 现场跑出，非估算：对合成的典型终端噪声实测 squeez 压缩前后 token，并对同一技术解释对比白话与文言。自己跑一遍即可复现：
 
-#### ❌ 未优化（传统方案）
-
-```
-System Prompt:        2000 Token
-代码库完整上下文:      15000 Token
-Bash 日志 (编译):     10000 Token
-对话历史:             5000 Token
-───────────────────────────
-总计:                32000 Token
+```bash
+pnpm bench          # 人读表格
+pnpm bench --md     # 输出 markdown
 ```
 
-#### ✅ 优化后（Token Saver）
+<!-- token-saver:bench:begin -->
+| 场景 | 原始 Token | 优化后 Token | 节省 |
+|------|-----------:|-------------:|-----:|
+| 依赖安装日志（squeez） | 3093 | 617 | **80%** |
+| 构建编译日志（squeez） | 8715 | 977 | **88%** |
+| 测试运行输出（squeez） | 5613 | 510 | **90%** |
+| 技术解释白话→文言（人格路由） | 65 | 32 | **50%** |
+| **终端三项合计** | **17421** | **2104** | **87%** |
+<!-- token-saver:bench:end -->
 
-```
-System Prompt (缓存):   -1800 Token (90% 缓存命中)
-代码库 (repomix):       7500 Token (50% 瘦身)
-Bash 日志 (squeez):      500 Token (95% 压缩)
-对话历史 (滑动窗口):    1200 Token (75% 去噪)
-───────────────────────────
-总计:                  8400 Token
-```
+> 基准内含承诺校验：压缩后若 `WARNING` / `FAIL` 行丢失则直接失败退出——**错误行永不被压掉**。
 
-**节省: 73.75%** ✨
+### 真实 LLM 输出对比（同一问，两种人格）
+
+问：*JS 事件循环中宏任务与微任务的执行顺序，为何 Promise 回调先于 setTimeout？* 同一答案，白话 257 token，文言（微言大义）145 token，**实测节省 43%**——语义无损，仅剥去客套与冗述。放大到整轮多次问答，输出层的省耗相当可观。
 
 ---
 
@@ -191,6 +188,8 @@ token-saver/
 │   ├── claude-md.template            # Claude Code / Codex 全局规范（含文言协议）
 │   ├── cursorrules.template          # Cursor 规范
 │   └── aider-conventions.template    # Aider CONVENTIONS
+├── bench/
+│   └── run.sh                        # Token 节省基准（真实可跑，含承诺校验）
 ├── tests/
 │   └── test-squeez.sh                # 自检（squeez + 安装器幂等性）
 ├── package.json
