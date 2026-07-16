@@ -33,6 +33,15 @@ install_squeez() {
     cp "$ROOT/bin/squeez" "$BIN_DIR/squeez"
     chmod +x "$BIN_DIR/squeez"
     echo "  ✅ squeez → $BIN_DIR/squeez"
+    # Windows: PowerShell/CMD 无法直接执行 bash 脚本，补 .cmd 垫片（批处理须 CRLF）
+    # 烤入 Git Bash 绝对路径，避免命中 WSL 的 bash（后者读不懂 Windows 路径）
+    if [ "${OS:-}" = "Windows_NT" ]; then
+        local winbash winscript
+        winbash="$(cygpath -w "$(command -v bash)")"
+        winscript="$(cygpath -w "$BIN_DIR/squeez")"
+        printf '@echo off\r\n"%s" "%s" %%*\r\n' "$winbash" "$winscript" > "$BIN_DIR/squeez.cmd"
+        echo "  ✅ squeez.cmd 垫片（PowerShell/CMD 可用）"
+    fi
     case ":$PATH:" in
         *":$BIN_DIR:"*) ;;
         *) echo "  ⚠️  $BIN_DIR 不在 PATH 中，请加入 PATH 后重开终端" ;;

@@ -4,6 +4,9 @@
 # 配置(环境变量): SQUEEZ_MAX_LINES=200 SQUEEZ_HEAD=40 SQUEEZ_TAIL=40 SQUEEZ_ERR_CONTEXT=2
 set -euo pipefail
 
+# Windows 垫片直呼 bash.exe 时不继承 MSYS PATH，补上 /usr/bin 以定位 tr/awk
+PATH="/usr/bin:$PATH"
+
 MAX="${SQUEEZ_MAX_LINES:-200}"
 HEAD="${SQUEEZ_HEAD:-40}"
 TAIL="${SQUEEZ_TAIL:-40}"

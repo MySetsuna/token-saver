@@ -28,6 +28,9 @@ SANDBOX=$(mktemp -d)
 HOME="$SANDBOX" bash install.sh --claude-code > /dev/null
 HOME="$SANDBOX" bash install.sh --claude-code > /dev/null   # 第二次，验证幂等
 [ -x "$SANDBOX/.local/bin/squeez" ] || fail "squeez 未安装"
+if [ "${OS:-}" = "Windows_NT" ]; then
+    [ -f "$SANDBOX/.local/bin/squeez.cmd" ] || fail "Windows 垫片未安装"
+fi
 [ "$(grep -c 'token-saver:begin' "$SANDBOX/.claude/CLAUDE.md")" = "1" ] || fail "CLAUDE.md 注入不幂等"
 grep -q "微言大义" "$SANDBOX/.claude/CLAUDE.md" || fail "文言协议未默认注入"
 h2=$(md5sum "$SANDBOX/.claude/CLAUDE.md")
