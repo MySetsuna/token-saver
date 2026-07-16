@@ -198,21 +198,20 @@ token-saver/
 ### 四层协同架构
 
 #### Layer 1: 终端输入压缩（squeez）
-- 挂载 Claude Code Hook: `PreToolUse` / `PostToolUse`
-- 拦截 Bash 输出，去重、截断、剥离 ANSI 码
-- 效果: `ps aux` 从 40k → 2k Token
+- 全局规范驱动：长输出命令自动追加 `| squeez` 管道
+- 剥离 ANSI 码、折叠重复行、智能截断（错误行永远保留）
+- 效果: 实测 73-97% 压缩
 
-#### Layer 2: 代码库去噪（repomix + LLMLingua）
-- 使用 AST 提取代码骨架（仅保留声明）
-- 使用信息熵算法删除冗余词汇
-- 效果: 项目打包 XML 瘦身 50%+
+#### Layer 2: 代码库去噪（repomix）
+- 自动剥离注释、遵循 .gitignore、XML 结构排版
+- 效果: 项目打包瘦身 50%+
 
-#### Layer 3: Prompt 缓存锚定（.claude.md）
+#### Layer 3: Prompt 缓存锚定（全局 CLAUDE.md）
 - 遵循"静态在前，动态在后"原则
-- 使用 XML 标签模块化 Prompt
-- 缓存命中率 95%+，费用降低 90%
+- 静态区严禁时间戳等动态变量
+- 缓存命中费用降低 90%
 
-#### Layer 4: 输出人格压缩（caveman）
+#### Layer 4: 输出人格压缩（微言大义协议）
 - 文言文协议: 字符数减少 80%，语义完整
 - 去除客套话、冗长解释
 - 代码块 100% 保留，无任何损失
@@ -271,10 +270,7 @@ SQUEEZ_ERR_CONTEXT=2
 git clone https://github.com/MySetsuna/token-saver.git
 cd token-saver
 
-pnpm install
-pnpm dev          # 启动开发服务器
-pnpm test         # 运行测试
-pnpm build        # 生产构建
+pnpm test         # 运行自检（无其他依赖）
 ```
 
 ---
@@ -302,7 +298,6 @@ pnpm build        # 生产构建
 
 - **Issues**: [GitHub Issues](https://github.com/MySetsuna/token-saver/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/MySetsuna/token-saver/discussions)
-- **文档**: [完整中文文档](./docs)
 
 ---
 
