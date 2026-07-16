@@ -25,6 +25,8 @@ out=$(printf 'a\nb\nc\n' | bash $S)
 
 # 5. install.sh --claude-code 在沙箱 HOME 中幂等
 SANDBOX=$(mktemp -d)
+mkdir -p "$SANDBOX/.claude"
+echo '{"model":"opus"}' > "$SANDBOX/.claude/settings.json"   # 预置用户设置，验证不被吞
 HOME="$SANDBOX" bash install.sh --claude-code > /dev/null
 HOME="$SANDBOX" bash install.sh --claude-code > /dev/null   # 第二次，验证幂等
 [ -x "$SANDBOX/.local/bin/squeez" ] || fail "squeez 未安装"
@@ -34,6 +36,14 @@ fi
 [ "$(grep -c 'token-saver:begin' "$SANDBOX/.claude/CLAUDE.md")" = "1" ] || fail "CLAUDE.md 注入不幂等"
 grep -q "微言大义" "$SANDBOX/.claude/CLAUDE.md" || fail "文言协议未默认注入"
 grep -qi "caveman" "$SANDBOX/.claude/CLAUDE.md" || fail "caveman 协议未默认注入"
+[ -f "$SANDBOX/.claude/token-saver-reminder.md" ] || fail "提醒文件未安装"
+node -e '
+    const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    if (s.model !== "opus") throw "用户原设置被吞";
+    const arr = s.hooks.UserPromptSubmit;
+    const n = JSON.stringify(arr).split("token-saver-reminder").length - 1;
+    if (n !== 1) throw "hook 注入不幂等: " + n;
+' "$SANDBOX/.claude/settings.json" || fail "settings.json hook 校验失败"
 h2=$(md5sum "$SANDBOX/.claude/CLAUDE.md")
 HOME="$SANDBOX" bash install.sh --claude-code > /dev/null   # 第三次，验证字节级幂等
 [ "$h2" = "$(md5sum "$SANDBOX/.claude/CLAUDE.md")" ] || fail "注入非字节级幂等"

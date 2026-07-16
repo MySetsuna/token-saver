@@ -56,6 +56,24 @@ case "${1:-}" in
         echo "▶ 为 Claude Code 配置..."
         install_squeez
         inject_block "$CLAUDE_DIR/CLAUDE.md" "$ROOT/config/claude-md.template"
+        # 抗指令漂移：UserPromptSubmit hook 每回合注入一行人格提醒（长对话不失效）
+        cp "$ROOT/config/reminder.md" "$CLAUDE_DIR/token-saver-reminder.md"
+        if command -v node >/dev/null 2>&1; then
+            [ -f "$CLAUDE_DIR/settings.json" ] && [ ! -f "$CLAUDE_DIR/settings.json.token-saver.bak" ] \
+                && cp "$CLAUDE_DIR/settings.json" "$CLAUDE_DIR/settings.json.token-saver.bak"
+            node -e '
+                const fs = require("fs"), p = process.argv[1] + "/settings.json";
+                let s = {}; try { s = JSON.parse(fs.readFileSync(p, "utf8")) } catch {}
+                s.hooks = s.hooks || {};
+                const arr = s.hooks.UserPromptSubmit = s.hooks.UserPromptSubmit || [];
+                if (!JSON.stringify(arr).includes("token-saver-reminder"))
+                    arr.push({ hooks: [{ type: "command", command: "bash -c \"cat ~/.claude/token-saver-reminder.md\"" }] });
+                fs.writeFileSync(p, JSON.stringify(s, null, 2) + "\n");
+            ' "$CLAUDE_DIR"
+            echo "  ✅ 抗漂移 hook → settings.json (UserPromptSubmit)"
+        else
+            echo "  ⚠️  未找到 node，跳过抗漂移 hook（协议仍生效，长对话可能漂移）"
+        fi
         echo ""
         echo "完成！下一步："
         echo "1. 重启 Claude Code（精简 + 文言输出规范默认生效）"

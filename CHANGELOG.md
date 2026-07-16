@@ -1,5 +1,10 @@
 # Changelog
 
+
+## v1.1.1 (2026-07-16)
+
+- **抗指令漂移**：`--claude-code` 注册 UserPromptSubmit hook，每回合注入一行人格提醒（约 30 token），修复长对话中输出人格逐渐失效的问题
+- settings.json 安全合并：只追加 hook 条目，原有设置原样保留，首次修改自动备份
 ## v1.1.0 (2026-07-16)
 
 - **输出人格路由**：按用户提问语言自动分流——中文→微言大义（文言），英文→Caveman（协议源自社区 JuliusBrussee/caveman），其他语言→该语言精简版
