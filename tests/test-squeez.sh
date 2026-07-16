@@ -36,7 +36,9 @@ fi
 [ "$(grep -c 'token-saver:begin' "$SANDBOX/.claude/CLAUDE.md")" = "1" ] || fail "CLAUDE.md 注入不幂等"
 grep -q "微言大义" "$SANDBOX/.claude/CLAUDE.md" || fail "文言协议未默认注入"
 grep -qi "caveman" "$SANDBOX/.claude/CLAUDE.md" || fail "caveman 协议未默认注入"
+grep -q "Ponytail" "$SANDBOX/.claude/CLAUDE.md" || fail "Ponytail 协议未默认注入"
 [ -f "$SANDBOX/.claude/token-saver-reminder.md" ] || fail "提醒文件未安装"
+grep -q "Ponytail" "$SANDBOX/.claude/token-saver-reminder.md" || fail "Ponytail 未进抗漂移提醒"
 node -e '
     const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
     if (s.model !== "opus") throw "用户原设置被吞";
