@@ -23,12 +23,12 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/token-saver/token-saver.git"
+    "url": "https://github.com/MySetsuna/token-saver.git"
   },
   "bugs": {
-    "url": "https://github.com/token-saver/token-saver/issues"
+    "url": "https://github.com/MySetsuna/token-saver/issues"
   },
-  "homepage": "https://github.com/token-saver/token-saver",
+  "homepage": "https://github.com/MySetsuna/token-saver",
   "engines": {
     "node": ">=18.0.0"
   }

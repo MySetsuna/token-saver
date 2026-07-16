@@ -14,7 +14,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/token-saver/token-saver.git
+git clone https://github.com/MySetsuna/token-saver.git
 cd token-saver
 
 # 一键接入 Claude Code（squeez + 全局规范注入，文言模式默认启用）
@@ -268,7 +268,7 @@ SQUEEZ_ERR_CONTEXT=2
 ### 开发快速开始
 
 ```bash
-git clone https://github.com/token-saver/token-saver.git
+git clone https://github.com/MySetsuna/token-saver.git
 cd token-saver
 
 pnpm install
@@ -300,8 +300,8 @@ pnpm build        # 生产构建
 
 ## 📞 支持
 
-- **Issues**: [GitHub Issues](https://github.com/token-saver/token-saver/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/token-saver/token-saver/discussions)
+- **Issues**: [GitHub Issues](https://github.com/MySetsuna/token-saver/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/MySetsuna/token-saver/discussions)
 - **文档**: [完整中文文档](./docs)
 
 ---
