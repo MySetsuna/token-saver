@@ -18,10 +18,13 @@ inject_block() { # $1=目标文件 $2=模板
         cp "$file" "$file.token-saver.bak"
     fi
     touch "$file"
-    tmp="$(mktemp)"
-    awk -v b="$MARK_BEGIN" -v e="$MARK_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$file" > "$tmp"
-    { cat "$tmp"; echo ""; cat "$tmpl"; } > "$file"
-    rm -f "$tmp"
+    local rest
+    # $() 会吞掉尾部空行，保证重复运行字节级幂等
+    rest="$(awk -v b="$MARK_BEGIN" -v e="$MARK_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$file")"
+    {
+        if [ -n "$rest" ]; then printf '%s\n\n' "$rest"; fi
+        cat "$tmpl"
+    } > "$file"
     echo "  ✅ 已注入: $file"
 }
 
