@@ -3,18 +3,10 @@
   "version": "1.0.0",
   "description": "🗜️ Complete Token Savings System for LLM Development - Save 70%-90% on Claude/OpenAI/Gemini costs",
   "type": "module",
-  "main": "dist/index.js",
-  "bin": {
-    "token-saver": "dist/cli/index.js"
-  },
   "scripts": {
-    "dev": "echo 'Development mode - use pnpm build && node dist/cli/index.js'",
-    "build": "echo 'TypeScript compilation would happen here'",
-    "test": "echo 'Tests would run here'",
-    "token:count": "echo 'Token count command'",
-    "token:watch": "echo 'Token watch command'",
-    "compress:repo": "echo 'Repo compression command'",
-    "report:optimization": "echo 'Generate optimization report'"
+    "test": "bash tests/test-squeez.sh",
+    "token:count": "node bin/token-count.mjs",
+    "compress:repo": "npx -y repomix"
   },
   "keywords": [
     "token-saver",
@@ -37,13 +29,6 @@
     "url": "https://github.com/token-saver/token-saver/issues"
   },
   "homepage": "https://github.com/token-saver/token-saver",
-  "dependencies": {
-    "chalk": "^5.3.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.10.6",
-    "typescript": "^5.3.3"
-  },
   "engines": {
     "node": ">=18.0.0"
   }

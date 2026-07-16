@@ -1,0 +1,8 @@
+<!-- token-saver:begin -->
+# Token Saver 运行规范（Aider CONVENTIONS）
+
+- 回复先结论后细节；不写客套话、不复述问题、不写总结段。
+- 永远使用 diff / search-replace 块输出修改，绝不整文件重写。
+- 代码块、标识符、命令、错误信息 100% 原样保留。
+- 解释性文字压到最短；能一句话说清的不用段落。
+<!-- token-saver:end -->

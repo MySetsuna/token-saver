@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# squeez — 终端输出压缩器：剥离 ANSI、折叠重复行、智能截断（错误行及上下文永远保留）
+# 用法: <命令> 2>&1 | squeez
+# 配置(环境变量): SQUEEZ_MAX_LINES=200 SQUEEZ_HEAD=40 SQUEEZ_TAIL=40 SQUEEZ_ERR_CONTEXT=2
+set -euo pipefail
+
+MAX="${SQUEEZ_MAX_LINES:-200}"
+HEAD="${SQUEEZ_HEAD:-40}"
+TAIL="${SQUEEZ_TAIL:-40}"
+CTX="${SQUEEZ_ERR_CONTEXT:-2}"
+
+# tr: 回车进度条帧转为独立行，交给去重/截断处理
+tr '\r' '\n' | awk -v max="$MAX" -v nhead="$HEAD" -v ntail="$TAIL" -v ctx="$CTX" -v esc="$(printf '\033')" '
+function flush() {
+    if (cnt == 0) return
+    if (cnt > 2)      { n++; line[n] = prev " (x" cnt ")" }
+    else if (cnt == 2){ n++; line[n] = prev; n++; line[n] = prev }
+    else              { n++; line[n] = prev }
+    cnt = 0
+}
+{
+    # ponytail: 只处理 CSI 与 BEL 结尾的 OSC 序列，罕见控制符不管
+    gsub(esc "\\[[0-9;?]*[ -/]*[@-~]", "")
+    gsub(esc "\\][^\007]*\007", "")
+    if (cnt && $0 == prev) { cnt++; next }
+    flush(); prev = $0; cnt = 1
+}
+END {
+    flush()
+    if (n <= max) { for (i = 1; i <= n; i++) print line[i]; exit }
+    for (i = 1; i <= n; i++) {
+        if (i <= nhead || i > n - ntail) { keep[i] = 1; continue }
+        if (tolower(line[i]) ~ /error|fail|warn|exception|traceback|panic|fatal|denied|refused/)
+            for (j = i - ctx; j <= i + ctx; j++) if (j >= 1 && j <= n) keep[j] = 1
+    }
+    omitted = 0
+    for (i = 1; i <= n; i++) {
+        if (keep[i]) {
+            if (omitted) { print "… [" omitted " 行已省略] …"; omitted = 0 }
+            print line[i]
+        } else omitted++
+    }
+    if (omitted) print "… [" omitted " 行已省略] …"
+}'

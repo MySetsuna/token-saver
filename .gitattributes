@@ -1,0 +1,5 @@
+# bash 脚本与注入模板必须保持 LF，CRLF 会导致 bash 报错
+*.sh text eol=lf
+*.mjs text eol=lf
+*.template text eol=lf
+bin/* text eol=lf

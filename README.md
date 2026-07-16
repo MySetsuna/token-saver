@@ -17,24 +17,27 @@
 git clone https://github.com/token-saver/token-saver.git
 cd token-saver
 
-# 一键接入 Claude Code（会自动配置 ~/.claude/settings.json）
+# 一键接入 Claude Code（squeez + 全局规范注入，文言模式默认启用）
 bash install.sh --claude-code
 
-# 或接入 Cursor
+# 或接入 Codex CLI / Cursor / Aider
+bash install.sh --codex
 bash install.sh --cursor
+bash install.sh --aider
 
-# 或接入通用 OpenAI API
+# 通用 OpenAI 兼容端点优化指引
 bash install.sh --openai-compat
 ```
 
-### 2️⃣ 手动安装（高级）
+所有写入均幂等（重复运行只更新 `<!-- token-saver -->` 标记块），首次修改前自动备份 `*.token-saver.bak`。
+
+### 2️⃣ 验证与日常使用
 
 ```bash
-# 逐个安装核心工具
-pnpm install
-
-# 启动本地压缩代理（可选）
-pnpm dev
+pnpm test                      # 运行自检（squeez + 安装器幂等性）
+pnpm token:count README.md     # 估算文件 Token 成本
+pnpm compress:repo             # 打包瘦身代码库（repomix）
+<某长输出命令> 2>&1 | squeez    # 手动压缩任意终端输出
 ```
 
 ---
@@ -49,8 +52,8 @@ pnpm dev
 │  Layer 1    │  Layer 2     │   Layer 3   │   Layer 4    │
 │ 终端输入压缩 │ 上下文去噪   │  Prompt     │  输出人格    │
 ├─────────────┼──────────────┼─────────────┼──────────────┤
-│  squeez     │ repomix +    │ .claude.md  │  caveman     │
-│  (Bash)     │ LLMLingua    │ (缓存锚定)  │ (文言/野人)  │
+│  squeez     │ repomix      │ 全局规范    │ 微言大义     │
+│  (内置)     │ (npx)        │ (缓存锚定)  │ (文言,默认)  │
 ├─────────────┼──────────────┼─────────────┼──────────────┤
 │  节省 90%   │  节省 50%    │  节省 50%   │  节省 75%    │
 │  (终端噪音) │  (代码冗冗)  │  (历史)     │  (废话)      │
@@ -65,12 +68,12 @@ pnpm dev
 
 | 工具 | 职责 | 节省幅度 | 状态 |
 |------|------|---------|------|
-| **squeez** | 终端输出压缩器 | 90-95% | ✅ 集成 |
-| **repomix** | 代码库打包瘦身 | 50%+ | ✅ 集成 |
-| **LLMLingua** | 上下文压缩 | 2x-20x | ✅ 集成 |
-| **caveman** | 文言文输出 Skill | 75-85% | ✅ 可选 |
-| **tamp** | API 代理 Token 去重 | 50% | ⚠️ 高级 |
-| **prompt-caching** | 提示词缓存 | 50-90% | ✅ 自动 |
+| **squeez** (`bin/squeez`) | 终端输出压缩器（去 ANSI、折叠重复、智能截断） | 90-95% | ✅ 内置 |
+| **repomix** | 代码库打包瘦身（`npx -y repomix`） | 50%+ | ✅ 集成 |
+| **微言大义协议** | 文言文输出（替代 caveman，注入即默认启用） | 75-85% | ✅ 内置 |
+| **prompt-caching 规范** | 静态前置 / 禁动态变量，注入到全局规范 | 50-90% | ✅ 内置 |
+| **tamp** | API 代理输入去重（`--openai-compat` 指引） | 50% | ⚠️ 高级 |
+| **LLMLingua** | 上下文压缩（Python，重依赖） | 2x-20x | ⏳ 规划 |
 
 ---
 
@@ -79,35 +82,27 @@ pnpm dev
 ### 场景 1: Claude Code 用户（最常见）
 
 ```bash
-# 自动配置 ~/.claude/settings.json + .claude.md
+# 安装 squeez 到 ~/.local/bin，并注入全局规范到 ~/.claude/CLAUDE.md
 bash install.sh --claude-code
 
 # 验证安装成功
-claude --help  # 应显示"Token Saver 已启用"
+echo test | squeez
 ```
 
 此时你的 Claude Code 会：
-- ✅ 自动压缩终端输出（90% 减少）
-- ✅ 加载缓存锚定的 Prompt 结构
-- ✅ 支持 `/wenyan` 激活文言文模式
-- ✅ 智能剥离代码库冗余信息
+- ✅ 长输出命令自动走 `| squeez` 压缩（规范驱动，90%+ 减少）
+- ✅ 遵循缓存锚定原则（静态前置、禁动态变量）
+- ✅ 文言文（微言大义）输出默认启用，说「白话模式」临时恢复
+- ✅ 宏观分析前先 repomix 打包，剥离代码库冗余
 
-### 场景 2: 启用极致文言文模式
+### 场景 2: 文言文模式（默认已启用）
 
-```bash
-# 在项目根目录编辑 .claude.md
-cat << 'EOF' >> .claude.md
-
-## Token Saver: Wenyan Protocol (文言模式)
-
-激活后 Claude 将使用古文回复，节省 50% 以上输出 Token：
+`--claude-code` / `--codex` 安装后，微言大义协议**默认生效**，无需额外配置：
 - 代码块 100% 无损，仅压缩解释性文本
 - 骨干技术短语保留，冗余客套话删除
-- 信息密度提升 3-5 倍
+- 会话中说「白话模式」临时恢复常规输出
 
-模式: WENYAN_ULTRA (极致古文，字符数减少 80%)
-EOF
-```
+不想默认启用？删除 `~/.claude/CLAUDE.md` 中 token-saver 标记块内的「微言大义协议」小节即可。
 
 ### 场景 3: 集成到 CI/CD 构建流水线
 
@@ -115,8 +110,8 @@ EOF
 # .github/workflows/build.yml
 - name: "Compress Code Context for LLM"
   run: |
-    npm run compress:repo  # 自动生成 codebase.xml（瘦身 50%）
-    npm run compress:logs  # 处理 build 日志（去噪 80%）
+    npm run compress:repo                        # repomix 打包（瘦身 50%）
+    npm run build 2>&1 | bin/squeez > build.log  # build 日志去噪（80%+）
 ```
 
 ---
@@ -155,47 +150,24 @@ Bash 日志 (squeez):      500 Token (95% 压缩)
 
 ### 自定义压缩策略
 
-编辑 `config/compress-rules.json`：
+squeez 通过环境变量配置：
 
-```json
-{
-  "terminal": {
-    "stripAnsi": true,
-    "collapseRepeated": true,
-    "maxLines": 100,
-    "keepErrorContext": 3
-  },
-  "code": {
-    "removeComments": true,
-    "removeDocstrings": false,
-    "astSkeletonOnly": true,
-    "maxDepth": 3
-  },
-  "output": {
-    "wenyanMode": "ultra",
-    "maxLength": 500,
-    "preserveCodeBlocks": true
-  }
-}
+```bash
+SQUEEZ_MAX_LINES=200    # 超过此行数才截断（默认 200）
+SQUEEZ_HEAD=40          # 截断时保留的开头行数
+SQUEEZ_TAIL=40          # 截断时保留的结尾行数
+SQUEEZ_ERR_CONTEXT=2    # 错误行上下文保留行数（错误行永远保留）
 ```
 
 ### 本地 Token 计数器
 
 ```bash
-# 估算当前上下文的 Token 成本
-npm run token:count
+# 估算文件或管道内容的 Token 成本（CJK ≈ 1 token/字，其余 ≈ 4 字符/token）
+npm run token:count README.md
+cat build.log | node bin/token-count.mjs
 
 # 输出示例:
-# ┌─────────────────────────────────┐
-# │ Current Context Analysis        │
-# ├─────────────────────────────────┤
-# │ System Prompt:       2000 Token │
-# │ Files included:      8500 Token │
-# │ Bash output:          500 Token │
-# │ Cache hits:         -1800 Token │
-# │                                 │
-# │ Total (estimated):  9200 Token  │
-# └─────────────────────────────────┘
+# chars: 12143  est. tokens: 6890
 ```
 
 ---
@@ -204,59 +176,19 @@ npm run token:count
 
 ```
 token-saver/
-├── install.sh                 # 一键安装脚本
-├── package.json               # pnpm 依赖
-├── README.md                  # 本文档
-├── LICENSE                    # Apache 2.0
-│
-├── src/
-│   ├── cli/
-│   │   ├── index.ts          # 命令行入口
-│   │   └── commands/
-│   │       ├── install.ts    # 安装命令
-│   │       ├── token-count.ts
-│   │       └── compress.ts
-│   │
-│   ├── core/
-│   │   ├── squeez.ts         # 终端压缩器
-│   │   ├── prompt-cacher.ts  # 缓存管理
-│   │   ├── ast-minify.ts     # 代码骨架提取
-│   │   └── semantic-cache.ts # 向量缓存
-│   │
-│   ├── integrations/
-│   │   ├── claude-code.ts    # Claude Code 适配
-│   │   ├── cursor.ts         # Cursor 适配
-│   │   ├── aider.ts          # Aider 适配
-│   │   └── openai-compat.ts  # 通用 OpenAI API
-│   │
-│   └── skills/
-│       ├── wenyan.ts         # 文言文输出 Skill
-│       ├── caveman.ts        # 野人模式
-│       └── lean-prompt.ts
-│
-├── skills/                    # Claude Code Skills（可选安装）
-│   ├── token-saver-wenyan/    # 文言文输出 Skill
-│   │   ├── SKILL.md
-│   │   └── prompt.md
-│   └── token-saver-basic/     # 基础 Skill
-│       ├── SKILL.md
-│       └── prompt.md
-│
+├── install.sh                        # 一键安装脚本（幂等，自动备份）
+├── bin/
+│   ├── squeez                        # 终端输出压缩器（bash + awk，零依赖）
+│   └── token-count.mjs               # 本地 Token 估算器
 ├── config/
-│   ├── compress-rules.json    # 压缩规则配置
-│   ├── .claude.md.template    # Claude.md 模板
-│   └── settings.json.template # 全局设置模板
-│
+│   ├── claude-md.template            # Claude Code / Codex 全局规范（含文言协议）
+│   ├── cursorrules.template          # Cursor 规范
+│   └── aider-conventions.template    # Aider CONVENTIONS
 ├── tests/
-│   ├── squeeze.test.ts
-│   ├── ast-minify.test.ts
-│   └── prompt-cacher.test.ts
-│
-└── docs/
-    ├── ARCHITECTURE.md        # 详细架构文档
-    ├── TROUBLESHOOTING.md     # 问题排查
-    ├── BENCHMARKS.md          # 性能对比数据
-    └── API.md                 # 开发者文档
+│   └── test-squeez.sh                # 自检（squeez + 安装器幂等性）
+├── package.json
+├── README.md
+└── LICENSE                           # Apache 2.0
 ```
 
 ---
@@ -307,56 +239,19 @@ token-saver/
 
 ---
 
-## 📈 监控与诊断
-
-### 实时 Token 统计
-
-```bash
-npm run token:watch
-
-# 实时显示每次调用的 Token 消耗对比
-# ┌──────────────────────────┐
-# │ 🔴 WITHOUT Token Saver   │
-# │ Request: 15000 Token     │
-# └──────────────────────────┘
-#          ↓  75% 节省
-# ┌──────────────────────────┐
-# │ 🟢 WITH Token Saver      │
-# │ Request: 3750 Token      │
-# └──────────────────────────┘
-```
-
-### 生成优化报告
-
-```bash
-npm run report:optimization
-
-# 输出 HTML 报告: ./reports/optimization-latest.html
-# - 对比: 有/无 Token Saver 的 Token 消耗
-# - 热点: 哪些工具贡献了最大节省
-# - 建议: 针对你的使用模式的定制优化策略
-```
-
----
-
 ## ⚙️ 环境变量
 
 ```bash
-# 启用调试日志
-TOKEN_SAVER_DEBUG=1
+# 安装器
+TOKEN_SAVER_BIN=~/.local/bin   # squeez 安装目录
+CLAUDE_CONFIG_DIR=~/.claude    # Claude 配置目录
+CODEX_HOME=~/.codex            # Codex 配置目录
 
-# 指定配置文件位置
-TOKEN_SAVER_CONFIG=/path/to/config.json
-
-# 禁用特定功能（逗号分隔）
-TOKEN_SAVER_DISABLE=squeez,caveman
-
-# 文言文模式: off / basic / full / ultra
-TOKEN_SAVER_WENYAN=ultra
-
-# Semantic Cache 后端 (redis / memory / disk)
-TOKEN_SAVER_CACHE_BACKEND=redis
-TOKEN_SAVER_REDIS_URL=redis://localhost:6379
+# squeez 压缩策略
+SQUEEZ_MAX_LINES=200
+SQUEEZ_HEAD=40
+SQUEEZ_TAIL=40
+SQUEEZ_ERR_CONTEXT=2
 ```
 
 ---
