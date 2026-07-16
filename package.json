@@ -7,6 +7,8 @@
     "test": "bash tests/test-squeez.sh",
     "token:count": "node bin/token-count.mjs",
     "compress:repo": "npx -y repomix",
+    "pack:repo": "bash bin/pack-repo.sh",
+    "cache:lint": "node bin/cache-lint.mjs",
     "bench": "bash bench/run.sh"
   },
   "keywords": [

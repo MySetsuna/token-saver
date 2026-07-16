@@ -69,4 +69,14 @@ rm -rf "$S2"
 out=$(printf 'hello world 你好' | node bin/token-count.mjs)
 echo "$out" | grep -q "est. tokens: 5" || fail "token 估算异常: [$out]"
 
+# 8. cache-lint（L3）：注入模板须无缓存杀手，且正负样本判定正确
+node bin/cache-lint.mjs config/claude-md.template config/cursorrules.template config/aider-conventions.template >/dev/null \
+    || fail "注入模板含缓存杀手（静态区混入动态内容）"
+TMP8=$(mktemp -d)
+printf 'purely static line\nno dynamics here\n' > "$TMP8/good.md"
+node bin/cache-lint.mjs "$TMP8/good.md" >/dev/null || fail "cache-lint 误报干净文件"
+printf 'static\nbuilt on 2026-01-02 at 03:04:05\n' > "$TMP8/bad.md"
+if node bin/cache-lint.mjs "$TMP8/bad.md" >/dev/null 2>&1; then fail "cache-lint 漏检日期/时钟"; fi
+rm -rf "$TMP8"
+
 echo "✅ 全部自检通过"

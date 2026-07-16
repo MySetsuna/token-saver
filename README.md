@@ -34,11 +34,14 @@ bash install.sh --openai-compat
 ### 2️⃣ 验证与日常使用
 
 ```bash
-pnpm test                      # 运行自检（squeez + 安装器幂等性）
+pnpm test                      # 运行自检（squeez + cache-lint + 安装器幂等性）
 pnpm token:count README.md     # 估算文件 Token 成本
-pnpm compress:repo             # 打包瘦身代码库（repomix）
+pnpm pack:repo                 # 打包瘦身代码库并实测前后 token 差（L2，需联网）
+pnpm cache:lint <文件...>      # 检查静态文件是否混入缓存杀手（L3，零依赖）
 <某长输出命令> 2>&1 | squeez    # 手动压缩任意终端输出
 ```
+
+> **L2/L3 已从「劝导」升为「可测/可强制」**：`pack:repo` 把 repomix 瘦身变成可复现的实测数（省耗视仓库而定——注释密集的代码仓才划算，本仓这类文档仓可能反增）；`cache:lint` 把「缓存区禁动态内容」的准则变成会 `exit 1` 的确定性检查，已入 `pnpm test`。
 
 ---
 
@@ -71,7 +74,8 @@ pnpm compress:repo             # 打包瘦身代码库（repomix）
 | 工具 | 职责 | 节省幅度 | 状态 |
 |------|------|---------|------|
 | **squeez** (`bin/squeez`) | 终端输出压缩器（去 ANSI、折叠重复、智能截断） | 73-97%（实测） | ✅ 内置 |
-| **repomix** | 代码库打包瘦身（`npx -y repomix`） | 50%+ | ✅ 集成 |
+| **repomix** | 代码库打包瘦身（`npx -y repomix`） | 视仓库而定，`pnpm pack:repo` 实测 | ✅ 集成 |
+| **cache-lint** (`bin/cache-lint.mjs`) | 缓存杀手检查器（禁静态区混入时间戳/UUID/绝对路径等） | 确定性守护缓存命中 | ✅ 内置 |
 | **输出人格路由** | 中文→微言大义（文言），英文→caveman，按语言自动分流 | 65-85% | ✅ 内置 |
 | **Ponytail 建造精简** | 懒开发者协议：YAGNI、复用优先、最短 diff、不做未请求的抽象 | 少写码即省 | ✅ 内置 |
 | **prompt-caching 规范** | 静态前置 / 禁动态变量，注入到全局规范 | 50-90% | ✅ 内置 |

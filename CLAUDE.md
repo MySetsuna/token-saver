@@ -13,6 +13,8 @@ pnpm test                    # 全量自检：squeez 压缩逻辑 + install.sh �
 bash tests/test-squeez.sh    # 同上（无需 pnpm）
 echo test | bash bin/squeez  # 手测压缩器
 node bin/token-count.mjs <文件>   # 本地 token 估算（CJK≈1 字/token，其余≈4 字符/token）
+node bin/cache-lint.mjs <文件>    # L3 缓存杀手检查（命中即 exit 1）
+bash bin/pack-repo.sh             # L2 repomix 打包并实测前后 token（需联网）
 ```
 
 测试用 `HOME=$(mktemp -d)` 沙箱运行 install.sh，不会碰真实用户配置。**手动调试 install.sh 时也务必如此**——`--claude-code` 会写 `~/.claude/CLAUDE.md`。
@@ -25,6 +27,8 @@ node bin/token-count.mjs <文件>   # 本地 token 估算（CJK≈1 字/token，
 - `config/*.template` — 各平台注入内容。`claude-md.template` 同时用于 Claude Code（`~/.claude/CLAUDE.md`）和 Codex（`~/.codex/AGENTS.md`），内容保持平台无关；Cursor/Aider 有独立精简版模板。
 - 文言模式不是 Skill：用户要求**安装即默认生效**，所以协议直接写在 `claude-md.template` 里，没有按需触发的 skill 形式。
 - Ponytail 协议同理**默认启用**：写在 `claude-md.template`（Claude Code/Codex）、`cursorrules.template`、`aider-conventions.template` 里，并进 `reminder.md` 每回合抗漂移。它是建造维度（少写码），与输出人格路由正交；改这几个模板须同步保留其「梯子 + 不可简化清单」，`tests/test-squeez.sh` 会 grep `Ponytail` 断言其默认注入。转义词「stop ponytail」/「normal mode」。
+- `bin/cache-lint.mjs`（L3 确定性）— node 标准库零依赖，逐行匹配「缓存杀手」（日期/时钟/UUID/长 hex/绝对家目录/`Date.now`）命中即报行号并 `exit 1`；把「静态区禁动态内容」的软准则变成机器检查。已入 `pnpm test`（断言模板干净 + 正负样本）。新增/改缓存杀手规则须保证 `config/*.template` 仍能通过。
+- `bin/pack-repo.sh`（L2 测量化）— `git ls-files` 过滤二进制 → token-count 求源码合计 → `npx -y repomix --remove-comments --remove-empty-lines` 打包 → token-count 求打包后，打印前后差。repomix 仍是唯一真外部工具（按需 npx，不入依赖）。诚实注意：文档/脚本仓打包可能反增（XML 脚手架开销），非普适省耗；产物 `repomix-output.xml` 已 gitignore。因需联网，**不进** `pnpm test` 也不进 `bench`（后者刻意保持无网络）。
 - 根目录 `.claude.md`（小写）是历史遗留的产品说明模板，与本文件无关。
 
 ## 约定
