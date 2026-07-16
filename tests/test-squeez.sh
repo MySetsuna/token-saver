@@ -40,7 +40,19 @@ HOME="$SANDBOX" bash install.sh --codex > /dev/null
 grep -q "token-saver:begin" "$SANDBOX/.codex/AGENTS.md" || fail "codex AGENTS.md 未注入"
 rm -rf "$SANDBOX"
 
-# 6. token 计数器
+# 6. 其余安装分支沙箱实测（cursor / aider / project）
+REPO=$(pwd)
+S2=$(mktemp -d)
+( cd "$S2" && HOME="$S2" bash "$REPO/install.sh" --cursor > /dev/null && HOME="$S2" bash "$REPO/install.sh" --cursor > /dev/null )
+[ "$(grep -c 'token-saver:begin' "$S2/.cursorrules")" = "1" ] || fail "cursorrules 注入不幂等"
+HOME="$S2" bash install.sh --aider > /dev/null
+[ -f "$S2/.token-saver/CONVENTIONS.md" ] || fail "aider 规范未安装"
+grep -q "CONVENTIONS.md" "$S2/.aider.conf.yml" || fail "aider 配置未创建"
+HOME="$S2" bash install.sh --project "$S2" > /dev/null
+grep -q "token-saver:begin" "$S2/CLAUDE.md" || fail "project 注入失败"
+rm -rf "$S2"
+
+# 7. token 计数器
 out=$(printf 'hello world 你好' | node bin/token-count.mjs)
 echo "$out" | grep -q "est. tokens: 5" || fail "token 估算异常: [$out]"
 
