@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.2.0 (2026-07-17)
+
+新增两层确定性能力与建造精简层，L2/L3 从「劝导」升为「可测/可强制」，全部数字诚实分级、无臆造。
+
+### 新功能
+- **Ponytail 建造精简（L5）**：懒开发者协议纳入体系、默认启用，与输出人格路由正交（一管怎么说、一管造什么）。写入 `claude-md`/`cursorrules`/`aider` 模板 + `reminder` 抗漂移。转义词「stop ponytail」/「normal mode」
+- **cache-lint（L3 确定性）**：`bin/cache-lint.mjs` 零依赖扫描静态文件的缓存杀手（日期/时钟/UUID/长 hex/绝对家目录/`Date.now`），命中即 `exit 1`；`--fix` 自动剥离为 `⟨removed⟩` 占位（默认 stdout 预览，`--write` 就地改并备份 `*.cache-lint.bak`）。已入 `pnpm test`
+- **缓存守护 hook（L3 写入前）**：`--claude-code` 幂等注册 PreToolUse 警告钩子，改写入缓存文件（`CLAUDE.md`/`AGENTS.md`/`.cursorrules`/`.claude/`）含缓存杀手时当场提醒，**恒不阻断编辑**
+- **pack:repo（L2 测量化）**：`bin/pack-repo.sh` repomix 打包并实测前后 token，`--compress` 对比抽签名模式
+- **真实基准 bench**：`pnpm bench` 现场跑出「确定性」（squeez 87%）与「行为性·潜在」（文言 51% / caveman 61% / Ponytail 91%）两类数据，含 `WARNING`/`FAIL` 承诺校验
+- **文言电报体优化**：文言协议再借野人之狠（删虚字/许碎片/压骨架），实测节省 42%→51%
+
+### 诚实化
+- 以 `pnpm bench` 现场真数替换 README 旧臆造对比（曾有 32000→8400 等杜撰值）
+- 修正 repomix「50%+」等未证实营销数字为「视仓库而定，实测」——实测本仓（文档/脚本）打包反增 2%~3%，印证 repomix 非普适
+
 ## v1.1.1 (2026-07-16)
 
 - **抗指令漂移**：`--claude-code` 注册 UserPromptSubmit hook，每回合注入一行人格提醒（约 30 token），修复长对话中输出人格逐渐失效的问题
