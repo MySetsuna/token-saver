@@ -92,6 +92,15 @@ printf 'purely static line\nno dynamics here\n' > "$TMP8/good.md"
 node bin/cache-lint.mjs "$TMP8/good.md" >/dev/null || fail "cache-lint 误报干净文件"
 printf 'static\nbuilt on 2026-01-02 at 03:04:05\n' > "$TMP8/bad.md"
 if node bin/cache-lint.mjs "$TMP8/bad.md" >/dev/null 2>&1; then fail "cache-lint 漏检日期/时钟"; fi
+# --fix 预览：剥离后无缓存杀手，且不改原文件
+node bin/cache-lint.mjs --fix "$TMP8/bad.md" > "$TMP8/fixed.md" 2>/dev/null
+node bin/cache-lint.mjs "$TMP8/fixed.md" >/dev/null || fail "--fix 预览后仍残留缓存杀手"
+grep -q "2026-01-02" "$TMP8/bad.md" || fail "--fix 预览误改了原文件"
+# --fix --write 就地改 + 备份
+node bin/cache-lint.mjs --fix --write "$TMP8/bad.md" >/dev/null || fail "--fix --write 失败"
+node bin/cache-lint.mjs "$TMP8/bad.md" >/dev/null || fail "--fix --write 后仍残留缓存杀手"
+[ -f "$TMP8/bad.md.cache-lint.bak" ] || fail "--fix --write 未备份"
+grep -q "2026-01-02" "$TMP8/bad.md.cache-lint.bak" || fail "备份未保留原内容"
 rm -rf "$TMP8"
 
 echo "✅ 全部自检通过"
