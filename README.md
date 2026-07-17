@@ -41,7 +41,10 @@ pnpm cache:lint <文件...>      # 检查静态文件是否混入缓存杀手（
 <某长输出命令> 2>&1 | squeez    # 手动压缩任意终端输出
 ```
 
-> **L2/L3 已从「劝导」升为「可测/可强制」**：`pack:repo` 把 repomix 瘦身变成可复现的实测数（省耗视仓库而定——注释密集的代码仓才划算，本仓这类文档仓可能反增）；`cache:lint` 把「缓存区禁动态内容」的准则变成会 `exit 1` 的确定性检查，已入 `pnpm test`。
+> **L2/L3 已从「劝导」升为「可测/可强制」**：
+> - `pack:repo` 把 repomix 瘦身变成可复现的实测数（省耗视仓库而定——有函数体的代码仓才划算，文档/脚本仓任何模式都可能反增）。加 `--compress`（`bash bin/pack-repo.sh --compress`）额外跑抽签名模式做对比。
+> - `cache:lint` 把「缓存区禁动态内容」的准则变成会 `exit 1` 的确定性检查，已入 `pnpm test`。
+> - `--claude-code` 安装还会挂一个 **PreToolUse 警告钩子**：当改写 `CLAUDE.md`/`AGENTS.md`/`.cursorrules` 等入缓存文件、内容混入时间戳/UUID/绝对路径时**当场提醒**（仅警告，绝不阻断编辑）。
 
 ---
 

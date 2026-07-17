@@ -28,7 +28,8 @@ bash bin/pack-repo.sh             # L2 repomix 打包并实测前后 token（需
 - 文言模式不是 Skill：用户要求**安装即默认生效**，所以协议直接写在 `claude-md.template` 里，没有按需触发的 skill 形式。
 - Ponytail 协议同理**默认启用**：写在 `claude-md.template`（Claude Code/Codex）、`cursorrules.template`、`aider-conventions.template` 里，并进 `reminder.md` 每回合抗漂移。它是建造维度（少写码），与输出人格路由正交；改这几个模板须同步保留其「梯子 + 不可简化清单」，`tests/test-squeez.sh` 会 grep `Ponytail` 断言其默认注入。转义词「stop ponytail」/「normal mode」。
 - `bin/cache-lint.mjs`（L3 确定性）— node 标准库零依赖，逐行匹配「缓存杀手」（日期/时钟/UUID/长 hex/绝对家目录/`Date.now`）命中即报行号并 `exit 1`；把「静态区禁动态内容」的软准则变成机器检查。已入 `pnpm test`（断言模板干净 + 正负样本）。新增/改缓存杀手规则须保证 `config/*.template` 仍能通过。
-- `bin/pack-repo.sh`（L2 测量化）— `git ls-files` 过滤二进制 → token-count 求源码合计 → `npx -y repomix --remove-comments --remove-empty-lines` 打包 → token-count 求打包后，打印前后差。repomix 仍是唯一真外部工具（按需 npx，不入依赖）。诚实注意：文档/脚本仓打包可能反增（XML 脚手架开销），非普适省耗；产物 `repomix-output.xml` 已 gitignore。因需联网，**不进** `pnpm test` 也不进 `bench`（后者刻意保持无网络）。
+- `config/cache-lint-hook.mjs`（L3 写入前守护，`--claude-code` 独有）— PreToolUse 警告钩子：**规则内联自足**（与 cache-lint.mjs 保持一致，故意不共享模块以免跨平台 import 脆弱）。install 复制它 → `~/.claude/token-saver-cache-hook.mjs`，并向 `settings.json` 的 `PreToolUse`（matcher `Write|Edit`）幂等注入（判重字符串 `token-saver-cache-hook`）。仅当写入目标是入缓存静态文件（`CLAUDE.md`/`AGENTS.md`/`.cursorrules`/`.claude/` 下）且内容含缓存杀手时，向 stderr 警告，**恒 `exit 0` 绝不阻断**（用户选的「仅警告」）。改行为须守住「恒 0」不变量。
+- `bin/pack-repo.sh`（L2 测量化）— `git ls-files` 过滤二进制 → token-count 求源码合计 → `npx -y repomix --remove-comments --remove-empty-lines` 打包 → token-count 求打包后，打印前后差。加 `--compress` 旗则再跑一次 `repomix --compress`（抽签名/弃函数体）做对比。repomix 仍是唯一真外部工具（按需 npx，不入依赖）。诚实注意：文档/脚本仓打包**任何模式都可能反增**（XML 脚手架开销 > 所省，实测本仓 -2%~-3%），--compress 只对有函数体的代码仓划算；产物 `repomix-output*.xml` 已 gitignore。因需联网，**不进** `pnpm test` 也不进 `bench`（后者刻意保持无网络）。
 - 根目录 `.claude.md`（小写）是历史遗留的产品说明模板，与本文件无关。
 
 ## 约定

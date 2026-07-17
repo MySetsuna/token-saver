@@ -58,6 +58,8 @@ case "${1:-}" in
         inject_block "$CLAUDE_DIR/CLAUDE.md" "$ROOT/config/claude-md.template"
         # 抗指令漂移：UserPromptSubmit hook 每回合注入一行人格提醒（长对话不失效）
         cp "$ROOT/config/reminder.md" "$CLAUDE_DIR/token-saver-reminder.md"
+        # L3 缓存守护：PreToolUse 警告钩子（写静态配置文件含缓存杀手时提醒，不阻断）
+        cp "$ROOT/config/cache-lint-hook.mjs" "$CLAUDE_DIR/token-saver-cache-hook.mjs"
         if command -v node >/dev/null 2>&1; then
             [ -f "$CLAUDE_DIR/settings.json" ] && [ ! -f "$CLAUDE_DIR/settings.json.token-saver.bak" ] \
                 && cp "$CLAUDE_DIR/settings.json" "$CLAUDE_DIR/settings.json.token-saver.bak"
@@ -68,11 +70,15 @@ case "${1:-}" in
                 const arr = s.hooks.UserPromptSubmit = s.hooks.UserPromptSubmit || [];
                 if (!JSON.stringify(arr).includes("token-saver-reminder"))
                     arr.push({ hooks: [{ type: "command", command: "bash -c \"cat ~/.claude/token-saver-reminder.md\"" }] });
+                const pre = s.hooks.PreToolUse = s.hooks.PreToolUse || [];
+                if (!JSON.stringify(pre).includes("token-saver-cache-hook"))
+                    pre.push({ matcher: "Write|Edit", hooks: [{ type: "command", command: "bash -c \"node ~/.claude/token-saver-cache-hook.mjs\"" }] });
                 fs.writeFileSync(p, JSON.stringify(s, null, 2) + "\n");
             ' "$CLAUDE_DIR"
             echo "  ✅ 抗漂移 hook → settings.json (UserPromptSubmit)"
+            echo "  ✅ 缓存守护 hook → settings.json (PreToolUse, 仅警告)"
         else
-            echo "  ⚠️  未找到 node，跳过抗漂移 hook（协议仍生效，长对话可能漂移）"
+            echo "  ⚠️  未找到 node，跳过抗漂移/缓存守护 hook（协议仍生效）"
         fi
         echo ""
         echo "完成！下一步："

@@ -39,13 +39,28 @@ grep -qi "caveman" "$SANDBOX/.claude/CLAUDE.md" || fail "caveman 协议未默认
 grep -q "Ponytail" "$SANDBOX/.claude/CLAUDE.md" || fail "Ponytail 协议未默认注入"
 [ -f "$SANDBOX/.claude/token-saver-reminder.md" ] || fail "提醒文件未安装"
 grep -q "Ponytail" "$SANDBOX/.claude/token-saver-reminder.md" || fail "Ponytail 未进抗漂移提醒"
+[ -f "$SANDBOX/.claude/token-saver-cache-hook.mjs" ] || fail "cache-lint hook 文件未安装"
 node -e '
     const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
     if (s.model !== "opus") throw "用户原设置被吞";
     const arr = s.hooks.UserPromptSubmit;
     const n = JSON.stringify(arr).split("token-saver-reminder").length - 1;
-    if (n !== 1) throw "hook 注入不幂等: " + n;
+    if (n !== 1) throw "UserPromptSubmit 注入不幂等: " + n;
+    const pre = s.hooks.PreToolUse || [];
+    const m = JSON.stringify(pre).split("token-saver-cache-hook").length - 1;
+    if (m !== 1) throw "PreToolUse 注入不幂等: " + m;
 ' "$SANDBOX/.claude/settings.json" || fail "settings.json hook 校验失败"
+# 缓存守护 hook 行为：写 CLAUDE.md 含缓存杀手 → 警告，且恒 exit 0（仅警告不阻断）
+HK="$SANDBOX/.claude/token-saver-cache-hook.mjs"
+r=$(printf '{"tool_name":"Write","tool_input":{"file_path":"/x/CLAUDE.md","content":"built on 2026-01-02"}}' | node "$HK" 2>&1; echo "RC:$?")
+echo "$r" | grep -q "缓存杀手" || fail "cache-hook 未警告缓存杀手"
+echo "$r" | grep -q "RC:0"     || fail "cache-hook 阻断了写入（应仅警告）"
+# 干净内容不警告；非目标文件不警告
+r=$(printf '{"tool_name":"Write","tool_input":{"file_path":"/x/CLAUDE.md","content":"purely static"}}' | node "$HK" 2>&1; echo "RC:$?")
+echo "$r" | grep -q "RC:0" || fail "cache-hook 干净内容异常退出"
+echo "$r" | grep -q "缓存杀手" && fail "cache-hook 对干净内容误警" || true
+r=$(printf '{"tool_name":"Write","tool_input":{"file_path":"/x/notes.txt","content":"date 2026-01-02"}}' | node "$HK" 2>&1)
+echo "$r" | grep -q "缓存杀手" && fail "cache-hook 对非静态文件误警" || true
 h2=$(md5sum "$SANDBOX/.claude/CLAUDE.md")
 HOME="$SANDBOX" bash install.sh --claude-code > /dev/null   # 第三次，验证字节级幂等
 [ "$h2" = "$(md5sum "$SANDBOX/.claude/CLAUDE.md")" ] || fail "注入非字节级幂等"
