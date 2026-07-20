@@ -27,7 +27,7 @@ out=$(printf 'a\nb\nc\n' | bash $S)
 SANDBOX=$(mktemp -d)
 mkdir -p "$SANDBOX/.claude"
 cat > "$SANDBOX/.claude/settings.json" <<'JSON'
-{"model":"opus","hooks":{"PreToolUse":[{"matcher":"Read","hooks":[{"type":"command","command":"keep-me"}]},{"matcher":"Write|Edit","hooks":[{"type":"command","command":"node token-saver-cache-hook.mjs"}]}]}}
+{"model":"opus","hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"bash -c \"cat ~/.claude/token-saver-reminder.md\""}]}],"PreToolUse":[{"matcher":"Read","hooks":[{"type":"command","command":"keep-me"}]},{"matcher":"Write|Edit","hooks":[{"type":"command","command":"node token-saver-cache-hook.mjs"}]}]}}
 JSON
 HOME="$SANDBOX" bash install.sh --all > /dev/null
 HOME="$SANDBOX" bash install.sh --all > /dev/null   # 第二次，验证幂等
@@ -47,6 +47,7 @@ grep -q '`audit`' "$SANDBOX/.claude/CLAUDE.md" || fail "audit 输出模式未注
 grep -q "prompt-prefix-check" "$SANDBOX/.claude/CLAUDE.md" || fail "确定性缓存检查规范未注入"
 grep -q "Ponytail" "$SANDBOX/.claude/CLAUDE.md" || fail "Ponytail 协议未默认注入"
 [ -f "$SANDBOX/.claude/token-saver-reminder.md" ] || fail "提醒文件未安装"
+[ -f "$SANDBOX/.claude/token-saver-reminder-hook.mjs" ] || fail "提醒 hook 脚本未安装"
 [ "$(wc -l < "$SANDBOX/.claude/token-saver-reminder.md")" -eq 1 ] || fail "抗漂移提醒未缩成单行"
 [ "$(wc -c < "$SANDBOX/.claude/token-saver-reminder.md")" -lt 240 ] || fail "抗漂移提醒仍过长"
 [ ! -f "$SANDBOX/.claude/token-saver-cache-hook.mjs" ] || fail "旧 cache-lint hook 文件未移除"
@@ -57,6 +58,8 @@ node -e '
     const n = JSON.stringify(arr).split("token-saver-reminder").length - 1;
     if (n !== 1) throw "UserPromptSubmit 注入不幂等: " + n;
     if (JSON.stringify(arr).includes("bash -c")) throw "UserPromptSubmit 不应依赖 bash";
+    if (JSON.stringify(arr).includes("node -e")) throw "UserPromptSubmit 不应含脆弱内联脚本";
+    if (!JSON.stringify(arr).includes("token-saver-reminder-hook.mjs")) throw "UserPromptSubmit 未指向独立 hook 脚本";
     const pre = s.hooks.PreToolUse || [];
     if (JSON.stringify(pre).includes("token-saver-cache-hook")) throw "旧缓存 hook 未迁移";
     if (!JSON.stringify(pre).includes("keep-me")) throw "第三方 PreToolUse hook 被误删";

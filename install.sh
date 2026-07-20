@@ -91,23 +91,28 @@ install_claude() {
     echo "▶ 为 Claude Code 配置..."
     inject_block "$CLAUDE_DIR/CLAUDE.md" "$ROOT/config/claude-md.template"
     cp "$ROOT/config/reminder.md" "$CLAUDE_DIR/token-saver-reminder.md"
+    cp "$ROOT/config/reminder-hook.mjs" "$CLAUDE_DIR/token-saver-reminder-hook.mjs"
     rm -f "$CLAUDE_DIR/token-saver-cache-hook.mjs"
     if command -v node >/dev/null 2>&1; then
+        local hook_script="$CLAUDE_DIR/token-saver-reminder-hook.mjs"
+        if is_windows && command -v cygpath >/dev/null 2>&1; then
+            hook_script="$(cygpath -w "$hook_script")"
+        fi
         [ -f "$CLAUDE_DIR/settings.json" ] && [ ! -f "$CLAUDE_DIR/settings.json.token-saver.bak" ] \
             && cp "$CLAUDE_DIR/settings.json" "$CLAUDE_DIR/settings.json.token-saver.bak"
         node -e '
             const fs = require("fs"), p = process.argv[1] + "/settings.json";
             let s = {}; try { s = JSON.parse(fs.readFileSync(p, "utf8")) } catch {}
             s.hooks = s.hooks || {};
-            const arr = s.hooks.UserPromptSubmit = s.hooks.UserPromptSubmit || [];
-            if (!JSON.stringify(arr).includes("token-saver-reminder"))
-                arr.push({ hooks: [{ type: "command", command: "node -e \"process.stdout.write(require('fs').readFileSync(require('path').join(require('os').homedir(), '.claude', 'token-saver-reminder.md'), 'utf8'))\"" }] });
+            const arr = (s.hooks.UserPromptSubmit || []).filter((hook) => !JSON.stringify(hook).includes("token-saver-reminder"));
+            arr.push({ hooks: [{ type: "command", command: "node " + JSON.stringify(process.argv[2]) }] });
+            s.hooks.UserPromptSubmit = arr;
             const pre = (s.hooks.PreToolUse || []).filter((hook) => !JSON.stringify(hook).includes("token-saver-cache-hook"));
             if (pre.length) s.hooks.PreToolUse = pre; else delete s.hooks.PreToolUse;
             fs.writeFileSync(p, JSON.stringify(s, null, 2) + "\n");
-        ' "$CLAUDE_DIR"
+        ' "$CLAUDE_DIR" "$hook_script"
         echo "  ✅ 单行抗漂移 hook → settings.json (UserPromptSubmit)"
-        echo "  ✅ 已迁移旧缓存字面检查 hook"
+        echo "  ✅ 已迁移旧 bash reminder / 缓存字面检查 hook"
     else
         echo "  ⚠️  未找到 node，跳过 Claude hook 配置（全局规范仍生效）"
     fi

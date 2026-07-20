@@ -94,7 +94,7 @@ echo test | squeez
 token-usage --all
 ```
 
-Claude Code 与 Codex 将共同采用检索优先上下文、三级输出预算、真实 usage 计量及确定性 prompt 前缀验证。Claude 的每回合提醒仅一行；旧字面缓存 hook 会自动迁移移除。
+Claude Code 与 Codex 将共同采用检索优先上下文、三级输出预算、真实 usage 计量及确定性 prompt 前缀验证。Claude 的每回合提醒仅一行；旧 `bash` reminder 与字面缓存 hook 会自动迁移移除。
 
 ### 场景 2: 输出语义预算（默认已启用）
 
