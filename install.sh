@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 🗜️ Token Saver — 一键安装脚本
+# Token Saver — 一键安装脚本
 # 用法: bash install.sh --claude-code | --codex | --cursor | --aider | --project [路径] | --openai-compat | --help
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,8 +37,13 @@ install_squeez() {
     # 烤入 Git Bash 绝对路径，避免命中 WSL 的 bash（后者读不懂 Windows 路径）
     if [ "${OS:-}" = "Windows_NT" ]; then
         local winbash winscript
-        winbash="$(cygpath -w "$(command -v bash)")"
-        winscript="$(cygpath -w "$BIN_DIR/squeez")"
+        if command -v cygpath >/dev/null 2>&1; then
+            winbash="$(cygpath -w "$(command -v bash)")"
+            winscript="$(cygpath -w "$BIN_DIR/squeez")"
+        else
+            winbash="$(command -v bash)"
+            winscript="$BIN_DIR/squeez"
+        fi
         printf '@echo off\r\n"%s" "%s" %%*\r\n' "$winbash" "$winscript" > "$BIN_DIR/squeez.cmd"
         echo "  ✅ squeez.cmd 垫片（PowerShell/CMD 可用）"
     fi
@@ -69,10 +74,10 @@ case "${1:-}" in
                 s.hooks = s.hooks || {};
                 const arr = s.hooks.UserPromptSubmit = s.hooks.UserPromptSubmit || [];
                 if (!JSON.stringify(arr).includes("token-saver-reminder"))
-                    arr.push({ hooks: [{ type: "command", command: "bash -c \"cat ~/.claude/token-saver-reminder.md\"" }] });
+                    arr.push({ hooks: [{ type: "command", command: "node -e \"process.stdout.write(require('fs').readFileSync(require('path').join(require('os').homedir(), '.claude', 'token-saver-reminder.md'), 'utf8'))\"" }] });
                 const pre = s.hooks.PreToolUse = s.hooks.PreToolUse || [];
                 if (!JSON.stringify(pre).includes("token-saver-cache-hook"))
-                    pre.push({ matcher: "Write|Edit", hooks: [{ type: "command", command: "bash -c \"node ~/.claude/token-saver-cache-hook.mjs\"" }] });
+                    pre.push({ matcher: "Write|Edit", hooks: [{ type: "command", command: "node -e \"const p=require('path').join(require('os').homedir(), '.claude', 'token-saver-cache-hook.mjs'); import(require('url').pathToFileURL(p).href)\"" }] });
                 fs.writeFileSync(p, JSON.stringify(s, null, 2) + "\n");
             ' "$CLAUDE_DIR"
             echo "  ✅ 抗漂移 hook → settings.json (UserPromptSubmit)"
@@ -136,6 +141,10 @@ EOF
 Token Saver 一键安装
 
 用法:
+  powershell -ExecutionPolicy Bypass -File .\install.ps1
+                                  Windows PowerShell 默认配置 Claude Code
+  powershell -ExecutionPolicy Bypass -File .\install.ps1 --codex
+                                  Windows PowerShell 配置 Codex CLI
   bash install.sh --claude-code      配置 Claude Code（squeez + 全局规范，文言模式默认启用）
   bash install.sh --codex            配置 Codex CLI（squeez + 全局 AGENTS.md 规范）
   bash install.sh --cursor           为当前项目写入 .cursorrules

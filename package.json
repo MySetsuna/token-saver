@@ -4,12 +4,12 @@
   "description": "🗜️ Complete Token Savings System for LLM Development - Save 70%-90% on Claude/OpenAI/Gemini costs",
   "type": "module",
   "scripts": {
-    "test": "bash tests/test-squeez.sh",
+    "test": "node bin/run-bash.mjs tests/test-squeez.sh",
     "token:count": "node bin/token-count.mjs",
     "compress:repo": "npx -y repomix",
-    "pack:repo": "bash bin/pack-repo.sh",
+    "pack:repo": "node bin/run-bash.mjs bin/pack-repo.sh",
     "cache:lint": "node bin/cache-lint.mjs",
-    "bench": "bash bench/run.sh"
+    "bench": "node bin/run-bash.mjs bench/run.sh"
   },
   "keywords": [
     "token-saver",

@@ -46,9 +46,11 @@ node -e '
     const arr = s.hooks.UserPromptSubmit;
     const n = JSON.stringify(arr).split("token-saver-reminder").length - 1;
     if (n !== 1) throw "UserPromptSubmit 注入不幂等: " + n;
+    if (JSON.stringify(arr).includes("bash -c")) throw "UserPromptSubmit 不应依赖 bash";
     const pre = s.hooks.PreToolUse || [];
     const m = JSON.stringify(pre).split("token-saver-cache-hook").length - 1;
     if (m !== 1) throw "PreToolUse 注入不幂等: " + m;
+    if (JSON.stringify(pre).includes("bash -c")) throw "PreToolUse 不应依赖 bash";
 ' "$SANDBOX/.claude/settings.json" || fail "settings.json hook 校验失败"
 # 缓存守护 hook 行为：写 CLAUDE.md 含缓存杀手 → 警告，且恒 exit 0（仅警告不阻断）
 HK="$SANDBOX/.claude/token-saver-cache-hook.mjs"
@@ -83,6 +85,10 @@ rm -rf "$S2"
 # 7. token 计数器
 out=$(printf 'hello world 你好' | node bin/token-count.mjs)
 echo "$out" | grep -q "est. tokens: 5" || fail "token 估算异常: [$out]"
+
+# 7.1 Windows 原生入口存在，默认转发到 --claude-code
+grep -q "ValueFromRemainingArguments" install.ps1 || fail "PowerShell 入口未支持透传参数"
+grep -q -- "--claude-code" install.ps1 || fail "PowerShell 入口未默认 claude-code"
 
 # 8. cache-lint（L3）：注入模板须无缓存杀手，且正负样本判定正确
 node bin/cache-lint.mjs config/claude-md.template config/cursorrules.template config/aider-conventions.template >/dev/null \

@@ -17,10 +17,18 @@
 git clone https://github.com/MySetsuna/token-saver.git
 cd token-saver
 
-# 一键接入 Claude Code（squeez + 全局规范注入，文言模式默认启用）
+# Windows PowerShell：一键接入 Claude Code（默认目标）
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+
+# Windows PowerShell：或指定 Codex / Cursor / Aider
+powershell -ExecutionPolicy Bypass -File .\install.ps1 --codex
+powershell -ExecutionPolicy Bypass -File .\install.ps1 --cursor
+powershell -ExecutionPolicy Bypass -File .\install.ps1 --aider
+
+# macOS / Linux / Git Bash：一键接入 Claude Code
 bash install.sh --claude-code
 
-# 或接入 Codex CLI / Cursor / Aider
+# macOS / Linux / Git Bash：或接入 Codex CLI / Cursor / Aider
 bash install.sh --codex
 bash install.sh --cursor
 bash install.sh --aider
