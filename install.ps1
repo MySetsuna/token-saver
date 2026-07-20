@@ -43,7 +43,7 @@ function Find-GitBash {
 }
 
 if (-not $InstallArgs -or $InstallArgs.Count -eq 0) {
-    $InstallArgs = @("--claude-code")
+    $InstallArgs = @("--all")
 }
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path

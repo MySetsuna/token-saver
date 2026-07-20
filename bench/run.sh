@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# bench — 直观量化 Token Saver 的节省效果（真实可跑、可复现、无需网络）
-#   终端压缩（确定性）：squeez 对合成终端噪声，实测压缩前后 token
-#   输出层（行为性）：同义的 白话vs文言 / 冗长英文vs caveman / 过度设计vs Ponytail 的 token 对比
-#                    —— 属「潜在省耗」，真实节省取决模型是否遵从协议
+# bench — 可复现的本地相对基准（token 数来自字符公式估算，不代替服务端 usage）
+#   终端压缩：squeez 对合成终端噪声，压缩行为确定
+#   输出层：同义短写 / terse English / 过度设计vs Ponytail 的人工样例
 # 用法: bash bench/run.sh          # 人读表格
 #       bash bench/run.sh --md     # 输出 markdown（贴进 README 用）
 set -euo pipefail
@@ -47,7 +46,7 @@ tot_raw=$(( RAW[0] + RAW[1] + RAW[2] ))
 tot_sq=$((  SQ[0]  + SQ[1]  + SQ[2]  ))
 
 # ============ 输出层（行为性，潜在省耗）============
-# 文言：同一技术解释，白话 vs 微言大义（多例取均）
+# 技术骨架体：同一技术解释，完整白话 vs 最短无损写法
 wy_raw=0; wy_out=0
 add_wy() { local r o; r=$(strtok "$1"); o=$(strtok "$2"); wy_raw=$((wy_raw+r)); wy_out=$((wy_out+o)); }
 add_wy 'React 组件每次渲染都会重新创建 props 里对象的引用，导致子组件即使数据没有变化也会跟着重新渲染，用 useMemo 把这个对象包裹起来就可以避免这个问题。' \
@@ -78,7 +77,7 @@ py_lazy='const cache = new Map()'
 py_raw=$(strtok "$py_verbose"); py_out=$(strtok "$py_lazy")
 
 if [ "${1:-}" = "--md" ]; then
-  echo "**终端压缩（确定性，squeez 实测）**"
+  echo "**终端压缩（行为确定性，token 数为本地估算）**"
   echo ""
   echo "| 场景 | 原始 Token | 优化后 Token | 节省 |"
   echo "|------|-----------:|-------------:|-----:|"
@@ -87,15 +86,15 @@ if [ "${1:-}" = "--md" ]; then
   done
   echo "| **终端三项合计** | **$tot_raw** | **$tot_sq** | **$(pct $tot_raw $tot_sq)%** |"
   echo ""
-  echo "**输出层（行为性·潜在省耗，取决模型遵从协议）**"
+  echo "**输出层（人工样例·估算，不作收益承诺）**"
   echo ""
   echo "| 协议 | 原始 Token | 优化后 Token | 节省 |"
   echo "|------|-----------:|-------------:|-----:|"
-  echo "| 微言大义·文言（4 例合计） | $wy_raw | $wy_out | **$(pct $wy_raw $wy_out)%** |"
+  echo "| 技术骨架体（4 例合计） | $wy_raw | $wy_out | **$(pct $wy_raw $wy_out)%** |"
   echo "| Caveman（3 例合计） | $cv_raw | $cv_out | **$(pct $cv_raw $cv_out)%** |"
   echo "| Ponytail 建造精简（示例） | $py_raw | $py_out | **$(pct $py_raw $py_out)%** |"
 else
-  echo "【终端压缩·确定性】squeez 实测"
+  echo "【终端压缩·行为确定】token 数为本地估算"
   printf '%-16s %10s %12s %8s\n' 场景 原始Token 优化后 节省
   for i in 0 1 2; do
     printf '%-16s %10s %12s %7s%%\n' "${NAME[$i]}" "${RAW[$i]}" "${SQ[$i]}" "$(pct ${RAW[$i]} ${SQ[$i]})"
@@ -103,9 +102,9 @@ else
   printf '%-16s %10s %12s %7s%%\n' "终端合计" "$tot_raw" "$tot_sq" "$(pct $tot_raw $tot_sq)"
   echo "✅ 错误/警告行压缩后保留（承诺校验通过）"
   echo ""
-  echo "【输出层·行为性】潜在省耗，取决模型遵从协议"
+  echo "【输出层·人工样例】估算，不作收益承诺"
   printf '%-20s %10s %12s %8s\n' 协议 原始Token 优化后 节省
-  printf '%-20s %10s %12s %7s%%\n' "文言(4例)"      "$wy_raw" "$wy_out" "$(pct $wy_raw $wy_out)"
+  printf '%-20s %10s %12s %7s%%\n' "骨架体(4例)"    "$wy_raw" "$wy_out" "$(pct $wy_raw $wy_out)"
   printf '%-20s %10s %12s %7s%%\n' "caveman(3例)"   "$cv_raw" "$cv_out" "$(pct $cv_raw $cv_out)"
   printf '%-20s %10s %12s %7s%%\n' "Ponytail(示例)" "$py_raw" "$py_out" "$(pct $py_raw $py_out)"
 fi

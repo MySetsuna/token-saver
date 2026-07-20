@@ -1,10 +1,10 @@
 # 🗜️ Token Saver — 完整的 Token 节省系统
 
-一个开源的、**零学习曲线**的 LLM Token 节省完整解决方案。从输入压缩、输出精简、到架构优化，帮你在用 Claude Code 时 **节省 70%-90% 的 Token 成本**。
+一个开源的 LLM Token 节省方案：压终端噪声、按需取上下文、稳定 prompt 前缀、约束输出与代码增量，并用 Claude Code / Codex 服务端 usage 验证真实收益。
 
-> **适配**: Claude Code / Claude API / Aider / Cursor  
-> **开箱即用**: 一键安装脚本，无需繁琐配置  
-> **可选文言文输出**: 激活"古文黑魔法"，再省 50% 输出 Token
+> **适配**: Claude Code / Codex / Aider / Cursor
+> **开箱即用**: 一键安装脚本，无需繁琐配置
+> **诚实计量**: usage 为实测；字符估算与人工示例不作收益承诺
 
 ---
 
@@ -17,7 +17,7 @@
 git clone https://github.com/MySetsuna/token-saver.git
 cd token-saver
 
-# Windows PowerShell：一键接入 Claude Code（默认目标）
+# Windows PowerShell：一键接入 Claude Code + Codex（默认）
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 # Windows PowerShell：或指定 Codex / Cursor / Aider
@@ -25,8 +25,8 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 --codex
 powershell -ExecutionPolicy Bypass -File .\install.ps1 --cursor
 powershell -ExecutionPolicy Bypass -File .\install.ps1 --aider
 
-# macOS / Linux / Git Bash：一键接入 Claude Code
-bash install.sh --claude-code
+# macOS / Linux / Git Bash：一键接入 Claude Code + Codex
+bash install.sh --all
 
 # macOS / Linux / Git Bash：或接入 Codex CLI / Cursor / Aider
 bash install.sh --codex
@@ -42,42 +42,27 @@ bash install.sh --openai-compat
 ### 2️⃣ 验证与日常使用
 
 ```bash
-pnpm test                      # 运行自检（squeez + cache-lint + 安装器幂等性）
-pnpm token:count README.md     # 估算文件 Token 成本
+pnpm test                      # 全量自检
+pnpm token:usage --all         # 汇总本机 Claude/Codex 服务端真实 usage
+pnpm token:count README.md     # 粗估文件 Token，仅供快速比较
+pnpm cache:check --strict before.txt after.txt  # 验证两次 prompt 前缀逐字节一致
 pnpm pack:repo                 # 打包瘦身代码库并实测前后 token 差（L2，需联网）
-pnpm cache:lint <文件...>      # 检查静态文件是否混入缓存杀手（L3，零依赖）
-node bin/cache-lint.mjs --fix --write <文件>  # 自动剥离缓存杀手（就地改，留 .bak 备份）
 <某长输出命令> 2>&1 | squeez    # 手动压缩任意终端输出
 ```
 
-> **L2/L3 已从「劝导」升为「可测/可强制」**：
-> - `pack:repo` 把 repomix 瘦身变成可复现的实测数（省耗视仓库而定——有函数体的代码仓才划算，文档/脚本仓任何模式都可能反增）。加 `--compress`（`bash bin/pack-repo.sh --compress`）额外跑抽签名模式做对比。
-> - `cache:lint` 把「缓存区禁动态内容」的准则变成会 `exit 1` 的确定性检查，已入 `pnpm test`。
-> - `--claude-code` 安装还会挂一个 **PreToolUse 警告钩子**：当改写 `CLAUDE.md`/`AGENTS.md`/`.cursorrules` 等入缓存文件、内容混入时间戳/UUID/绝对路径时**当场提醒**（仅警告，绝不阻断编辑）。
+`token-usage` 只读 JSONL 的 usage 字段，不输出对话正文。`prompt-prefix-check` 以两次快照的真实公共前缀与 SHA-256 判定稳定性；日期、UUID 等固定字面不再被误判为必然破坏缓存。
 
 ---
 
 ## 🏗️ 系统架构
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  Claude Code / Cursor                   │
-│                                                          │
-├─────────────┬──────────────┬─────────────┬──────────────┤
-│  Layer 1    │  Layer 2     │   Layer 3   │   Layer 4    │
-│ 终端输入压缩 │ 上下文去噪   │  Prompt     │  输出人格    │
-├─────────────┼──────────────┼─────────────┼──────────────┤
-│  squeez     │ repomix      │ 全局规范    │ 人格路由     │
-│  (内置)     │ (npx)        │ (缓存锚定)  │(中文言/英cave)│
-├─────────────┼──────────────┼─────────────┼──────────────┤
-│  节省 90%   │  节省 50%    │  节省 50%   │  节省 75%    │
-│  (终端噪音) │  (代码冗冗)  │  (历史)     │  (废话)      │
-└─────────────┴──────────────┴─────────────┴──────────────┘
-                        ↓
-              最终节省: 70%-90% Token
-```
+1. **真实计量**：先看 Claude/Codex 服务端 usage，再谈收益。
+2. **最小上下文**：diff → 符号关系 → `rg` → 精确行段；`repomix` 末位。
+3. **确定性缓存**：静态前缀在前、动态尾部在后；两次快照逐字节验证。
+4. **语义预算**：默认 terse，教学切 normal，安全/迁移/审查自动 audit。
+5. **最小建造**：Ponytail 约束代码与依赖增量，安全边界不省。
 
-> 另有正交的**第五层 Ponytail 建造精简**（少写代码即省 token），随规范默认注入，详见下文「代码建造精简」。
+终端日志另由 `squeez` 去噪。各层收益重叠，最终效果只按同任务前后 usage 计算。
 
 ---
 
@@ -86,11 +71,11 @@ node bin/cache-lint.mjs --fix --write <文件>  # 自动剥离缓存杀手（就
 | 工具 | 职责 | 节省幅度 | 状态 |
 |------|------|---------|------|
 | **squeez** (`bin/squeez`) | 终端输出压缩器（去 ANSI、折叠重复、智能截断） | 73-97%（实测） | ✅ 内置 |
-| **repomix** | 代码库打包瘦身（`npx -y repomix`） | 视仓库而定，`pnpm pack:repo` 实测 | ✅ 集成 |
-| **cache-lint** (`bin/cache-lint.mjs`) | 缓存杀手检查器（禁静态区混入时间戳/UUID/绝对路径等） | 确定性守护缓存命中 | ✅ 内置 |
-| **输出人格路由** | 中文→微言大义（文言），英文→caveman，按语言自动分流 | 65-85% | ✅ 内置 |
-| **Ponytail 建造精简** | 懒开发者协议：YAGNI、复用优先、最短 diff、不做未请求的抽象 | 少写码即省 | ✅ 内置 |
-| **prompt-caching 规范** | 静态前置 / 禁动态变量，注入到全局规范 | 50-90% | ✅ 内置 |
+| **token-usage** | 聚合 Claude/Codex 服务端 usage | 真实计量 | ✅ 内置 |
+| **prompt-prefix-check** | 比较两次 prompt 的公共前缀与 hash | 确定性判定 | ✅ 内置 |
+| **repomix** | 跨模块全景的末位工具 | 以实际任务为准 | ✅ 集成 |
+| **terse/normal/audit** | 按任务风险分配输出语义预算 | 以 usage 为准 | ✅ 内置 |
+| **Ponytail** | YAGNI、复用优先、最小可维护 diff | 以真实 diff/usage 为准 | ✅ 内置 |
 | **tamp** | API 代理输入去重（`--openai-compat` 指引） | 50% | ⚠️ 高级 |
 | **LLMLingua** | 上下文压缩（Python，重依赖） | 2x-20x | ⏳ 规划 |
 
@@ -98,37 +83,33 @@ node bin/cache-lint.mjs --fix --write <文件>  # 自动剥离缓存杀手（就
 
 ## 🚀 详细配置
 
-### 场景 1: Claude Code 用户（最常见）
+### 场景 1: Claude Code + Codex 一键配置
 
 ```bash
-# 安装 squeez 到 ~/.local/bin，并注入全局规范到 ~/.claude/CLAUDE.md
-bash install.sh --claude-code
+# 安装三个工具，并注入 ~/.claude/CLAUDE.md 与 ~/.codex/AGENTS.md
+bash install.sh --all
 
 # 验证安装成功
 echo test | squeez
+token-usage --all
 ```
 
-此时你的 Claude Code 会：
-- ✅ 长输出命令自动走 `| squeez` 压缩（规范驱动，90%+ 减少）
-- ✅ 遵循缓存锚定原则（静态前置、禁动态变量）
-- ✅ 文言文（微言大义）输出默认启用，说「白话模式」临时恢复
-- ✅ 宏观分析前先 repomix 打包，剥离代码库冗余
+Claude Code 与 Codex 将共同采用检索优先上下文、三级输出预算、真实 usage 计量及确定性 prompt 前缀验证。Claude 的每回合提醒仅一行；旧字面缓存 hook 会自动迁移移除。
 
-### 场景 2: 输出人格路由（默认已启用）
+### 场景 2: 输出语义预算（默认已启用）
 
-`--claude-code` / `--codex` 安装后，按**用户提问语言**自动分流输出人格：
+`--all` / `--claude-code` / `--codex` 安装后，按任务风险分配输出长度：
 
-| 提问语言 | 输出人格 | 效果 |
+| 模式 | 触发 | 输出 |
 |---|---|---|
-| 中文 | 微言大义（半文半白） | `props` 每渲染皆新对象，致重绘。`useMemo` 包之则免。 |
-| 英文 | Caveman（源自 [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman)） | New object ref each render. Wrap in `useMemo`. |
-| 其他 | 该语言精简版 | 压风格，不换语言 |
+| terse | 默认 | 结论、必要依据、下一动作 |
+| normal | 用户说“白话模式”/`normal mode` | 完整清晰，仍去赘述 |
+| audit | 安全、破坏性操作、迁移、审计、代码审查 | 风险、证据、验证完整保留 |
 
-- 代码块与错误信息 100% 无损，仅压缩解释性文本
-- 安全警告、不可逆操作确认自动豁免（完整表述）
-- 说「白话模式」/ "normal mode" 临时恢复常规输出
+- 中文采用现代技术骨架体；不用生僻古字换取表面字符减少
+- 代码、命令、错误、路径、URL 100% 原样
 
-不想默认启用？删除 `~/.claude/CLAUDE.md` 中 token-saver 标记块内的「输出人格路由」小节即可。
+不想默认启用？删除全局文件 token-saver 标记块内的「输出语义预算」小节即可。
 
 ### 代码建造精简（Ponytail 协议，默认已启用）
 
@@ -141,7 +122,7 @@ echo test | squeez
 - 不做未经请求的抽象（无单实现的接口、单产物的工厂、恒定值的配置）
 - 最短可用 diff 取胜；改 bug 修根因（先 grep 全部调用方，共有函数处一次修好）
 - **绝不简化掉**：输入校验、防丢数据的错误处理、安全措施、无障碍基础、用户明确要求之物
-- 每回合经抗漂移 hook 重锚定，长对话不失效；说「stop ponytail」/「normal mode」临时恢复
+- Claude 每回合仅注入一行抗漂移提醒；说 `stop ponytail` 临时停用
 
 ### 场景 3: 集成到 CI/CD 构建流水线
 
@@ -155,9 +136,9 @@ echo test | squeez
 
 ---
 
-## 📊 效果对比（真实基准，可复现）
+## 📊 效果对比（本地估算基准，可复现）
 
-数字由 `pnpm bench` 现场跑出，非估算。**分两类，诚实标注**：终端压缩是确定性实测；输出层是「潜在省耗」——量的是同义两种写法的 token 差，真实节省取决模型是否遵从协议。自己跑一遍即可复现：
+`pnpm bench` 用统一字符公式作快速相对比较：压缩行为可复现，token 数仍属估算；输出层另受模型遵从与正确率影响。真实成本请以 `token-usage --all` 为准。
 
 ```bash
 pnpm bench          # 人读表格
@@ -165,7 +146,7 @@ pnpm bench --md     # 输出 markdown
 ```
 
 <!-- token-saver:bench:begin -->
-**终端压缩（确定性，squeez 实测）**
+**终端压缩（行为确定性，token 数为本地估算）**
 
 | 场景 | 原始 Token | 优化后 Token | 节省 |
 |------|-----------:|-------------:|-----:|
@@ -174,20 +155,20 @@ pnpm bench --md     # 输出 markdown
 | 测试运行输出 | 5613 | 510 | **90%** |
 | **终端三项合计** | **17421** | **2104** | **87%** |
 
-**输出层（行为性·潜在省耗，取决模型遵从协议）**
+**输出层（人工样例·估算，不作收益承诺）**
 
 | 协议 | 原始 Token | 优化后 Token | 节省 |
 |------|-----------:|-------------:|-----:|
-| 微言大义·文言（电报体，4 例合计） | 261 | 127 | **51%** |
+| 技术骨架体（4 例合计） | 261 | 127 | **51%** |
 | Caveman（3 例合计） | 113 | 44 | **61%** |
 | Ponytail 建造精简（示例） | 68 | 6 | **91%** |
 <!-- token-saver:bench:end -->
 
 > 基准内含承诺校验：压缩后若 `WARNING` / `FAIL` 行丢失则直接失败退出——**错误行永不被压掉**。
 
-### 真实 LLM 输出对比（同一问，两种人格）
+### 人工输出样例（同一问，两种写法）
 
-问：*JS 事件循环中宏任务与微任务的执行顺序，为何 Promise 回调先于 setTimeout？* 同一答案，白话 257 token，文言（微言大义）145 token，**实测节省 43%**——语义无损，仅剥去客套与冗述。放大到整轮多次问答，输出层的省耗相当可观。
+此类例子只说明短写法字符更少，不证明真实会话成本或语义等价。应在固定任务集上对比服务端 usage 与正确率。
 
 ---
 
@@ -215,6 +196,17 @@ cat build.log | node bin/token-count.mjs
 # chars: 12143  est. tokens: 6890
 ```
 
+### 服务端 Usage 与 Prompt 前缀
+
+```bash
+token-usage --all                 # 自动读取 Claude/Codex 本机 JSONL，仅汇总 usage
+token-usage --claude --json       # 只看 Claude，机器可读
+token-usage ./captured-logs       # 汇总指定文件或目录
+
+prompt-prefix-check --strict first.txt second.txt
+prompt-prefix-check --min-prefix 4096 first.txt second.txt
+```
+
 ---
 
 ## 📂 项目结构
@@ -224,9 +216,11 @@ token-saver/
 ├── install.sh                        # 一键安装脚本（幂等，自动备份）
 ├── bin/
 │   ├── squeez                        # 终端输出压缩器（bash + awk，零依赖）
-│   └── token-count.mjs               # 本地 Token 估算器
+│   ├── token-count.mjs               # 本地 Token 粗估器
+│   ├── token-usage.mjs               # Claude/Codex 服务端 usage 聚合
+│   └── prompt-prefix-check.mjs       # prompt 前缀确定性比较
 ├── config/
-│   ├── claude-md.template            # Claude Code / Codex 全局规范（含文言协议）
+│   ├── claude-md.template            # Claude Code / Codex 五项全局规范
 │   ├── cursorrules.template          # Cursor 规范
 │   └── aider-conventions.template    # Aider CONVENTIONS
 ├── bench/
@@ -242,26 +236,28 @@ token-saver/
 
 ## 🎓 原理深度解析
 
-### 四层协同架构
+### 五项协同架构
 
 #### Layer 1: 终端输入压缩（squeez）
 - 全局规范驱动：长输出命令自动追加 `| squeez` 管道
 - 剥离 ANSI 码、折叠重复行、智能截断（错误行永远保留）
 - 效果: 实测 73-97% 压缩
 
-#### Layer 2: 代码库去噪（repomix）
-- 自动剥离注释、遵循 .gitignore、XML 结构排版
-- 效果: 项目打包瘦身 50%+
+#### Layer 2: 检索优先上下文
+- diff、符号关系、`rg`、精确行段依次取用
+- `repomix` 仅用于限定范围的跨模块全景
 
-#### Layer 3: Prompt 缓存锚定（全局 CLAUDE.md）
-- 遵循"静态在前，动态在后"原则
-- 静态区严禁时间戳等动态变量
-- 缓存命中费用降低 90%
+#### Layer 3: Prompt 前缀稳定
+- 静态在前，动态在后
+- 两次快照逐字节比较，不按日期/UUID 等字面臆测
 
-#### Layer 4: 输出人格压缩（按语言路由）
-- 中文→微言大义（字符数减少 80%），英文→caveman（token 减少 65%）
-- 去除客套话、冗长解释；安全警告自动豁免
-- 代码块 100% 保留，无任何损失
+#### Layer 4: 输出语义预算
+- 默认 terse；教学 normal；安全/迁移/审查 audit
+- 中文用现代技术骨架体；代码与报错原样
+
+#### Layer 5: 真实计量
+- `token-usage` 汇总 Claude/Codex 服务端 usage
+- 各层收益不相加；同任务前后比较总量与正确率
 
 ---
 
@@ -335,7 +331,7 @@ pnpm test         # 运行自检（无其他依赖）
 - [claudioemmanuel/squeez](https://github.com/claudioemmanuel/squeez) — 终端压缩
 - [yamadashy/repomix](https://github.com/yamadashy/repomix) — 代码打包
 - [microsoft/LLMLingua](https://github.com/microsoft/LLMLingua) — 上下文压缩
-- [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) — 文言文输出
+- [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) — terse English 灵感
 - [sliday/tamp](https://github.com/sliday/tamp) — API 代理
 - [flightlesstux/prompt-caching](https://github.com/flightlesstux/prompt-caching) — 缓存机制
 
