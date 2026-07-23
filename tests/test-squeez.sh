@@ -70,9 +70,13 @@ HOME="$SANDBOX" bash install.sh --all > /dev/null   # 第三次，验证字节�
 grep -q "token-saver:begin" "$SANDBOX/.codex/AGENTS.md" || fail "codex AGENTS.md 未注入"
 rm -rf "$SANDBOX"
 
-# 6. 其余安装分支沙箱实测（cursor / aider / project）
+# 6. 其余安装分支沙箱实测（ridgecode / cursor / aider / project）
 REPO=$(pwd)
 S2=$(mktemp -d)
+HOME="$S2" bash install.sh --ridgecode > /dev/null
+HOME="$S2" bash install.sh --ridgecode > /dev/null   # 幂等
+[ "$(grep -c 'token-saver:begin' "$S2/.ridge/AGENTS.md")" = "1" ] || fail "ridgecode 注入不幂等"
+grep -q "Ponytail" "$S2/.ridge/AGENTS.md" || fail "ridgecode 规范缺 Ponytail"
 ( cd "$S2" && HOME="$S2" bash "$REPO/install.sh" --cursor > /dev/null && HOME="$S2" bash "$REPO/install.sh" --cursor > /dev/null )
 [ "$(grep -c 'token-saver:begin' "$S2/.cursorrules")" = "1" ] || fail "cursorrules 注入不幂等"
 HOME="$S2" bash install.sh --aider > /dev/null

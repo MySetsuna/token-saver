@@ -21,10 +21,10 @@ bash bin/pack-repo.sh             # L2 repomix 打包并实测前后 token（需
 
 ## 架构要点
 
-- `install.sh` — 唯一入口，按 `--claude-code` / `--codex` / `--cursor` / `--aider` / `--project` 分发。核心函数 `inject_block`：用 `<!-- token-saver:begin/end -->` 标记做幂等注入（重复运行整块替换，字节级幂等），首次修改前备份 `*.token-saver.bak`。改任何写入逻辑必须保持这两个不变量。
+- `install.sh` — 唯一入口，按 `--claude-code` / `--codex` / `--ridgecode` / `--cursor` / `--aider` / `--project` 分发。核心函数 `inject_block`：用 `<!-- token-saver:begin/end -->` 标记做幂等注入（重复运行整块替换，字节级幂等），首次修改前备份 `*.token-saver.bak`。改任何写入逻辑必须保持这两个不变量。
 - 抗指令漂移 hook（`--claude-code` 独有）：复制 `config/reminder.md` → `~/.claude/token-saver-reminder.md`，并用 node 向 `settings.json` 的 `UserPromptSubmit` hooks 注入 `cat` 该文件的命令，每回合重锚定输出人格路由。注入同样幂等（按 `token-saver-reminder` 字符串判重）且先备份 `settings.json.token-saver.bak`；无 node 则跳过。
 - `bin/squeez` — bash + awk 零依赖压缩器：去 ANSI → 折叠重复行 `(xN)` → 超过 `SQUEEZ_MAX_LINES` 时保留头/尾/错误行及上下文。错误行（error/fail/warn/exception/panic…）**永远保留**，这是产品承诺。Windows 安装时额外生成 `squeez.cmd` 垫片（CRLF、烤入 Git Bash 绝对路径以避开 WSL bash）；`bin/squeez` 开头把 `/usr/bin` 补进 PATH 正是为配合该垫片。
-- `config/*.template` — 各平台注入内容。`claude-md.template` 同时用于 Claude Code（`~/.claude/CLAUDE.md`）和 Codex（`~/.codex/AGENTS.md`），内容保持平台无关；Cursor/Aider 有独立精简版模板。
+- `config/*.template` — 各平台注入内容。`claude-md.template` 同时用于 Claude Code（`~/.claude/CLAUDE.md`）和 Codex（`~/.codex/AGENTS.md`），内容保持平台无关；Cursor/Aider 有独立精简版模板。`ridgecode.template`（`--ridgecode`）注入 `~/.ridge/AGENTS.md` 作 RidgeCode 全局规则——**刻意不含文言协议**（RidgeCode 常跑弱模型，正确率优先，只压结构不换文体），依赖 ridge-code 侧 `load_project_rules` 的全局文件读取。
 - 文言模式不是 Skill：用户要求**安装即默认生效**，所以协议直接写在 `claude-md.template` 里，没有按需触发的 skill 形式。
 - Ponytail 协议同理**默认启用**：写在 `claude-md.template`（Claude Code/Codex）、`cursorrules.template`、`aider-conventions.template` 里，并进 `reminder.md` 每回合抗漂移。它是建造维度（少写码），与输出人格路由正交；改这几个模板须同步保留其「梯子 + 不可简化清单」，`tests/test-squeez.sh` 会 grep `Ponytail` 断言其默认注入。转义词「stop ponytail」/「normal mode」。
 - `bin/cache-lint.mjs`（L3 确定性）— node 标准库零依赖，逐行匹配「缓存杀手」（日期/时钟/UUID/长 hex/绝对家目录/`Date.now`）命中即报行号并 `exit 1`；把「静态区禁动态内容」的软准则变成机器检查。`--fix` 把每处缓存杀手替换为 `⟨removed⟩` 占位（占位本身不含杀手，故 fix 后再 lint 必净）：默认输出到 stdout 预览不改文件，`--fix --write` 才就地改并备份 `*.cache-lint.bak`。已入 `pnpm test`（断言模板干净 + 正负样本 + fix 预览/写回/备份）。新增/改缓存杀手规则须保证 `config/*.template` 仍能通过，且同步改 `config/cache-lint-hook.mjs` 的内联规则。

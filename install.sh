@@ -149,6 +149,13 @@ case "${1:-}" in
         echo ""
         echo "完成！重启 Codex 后五项 Token Saver 规范生效。"
         ;;
+    --ridgecode)
+        echo "▶ 为 RidgeCode 配置..."
+        inject_block "$HOME/.ridge/AGENTS.md" "$ROOT/config/ridgecode.template"
+        echo ""
+        echo "完成！RidgeCode 启动时将 ~/.ridge/AGENTS.md 作为全局规则注入 system prompt。"
+        echo "（需含全局规则读取的 ridge-code 版本；弱模型友好：不含文言协议，只压结构。）"
+        ;;
     --cursor)
         echo "▶ 为 Cursor 配置（当前目录: $PWD）..."
         inject_block "$PWD/.cursorrules" "$ROOT/config/cursorrules.template"
@@ -199,6 +206,7 @@ Token Saver 一键安装
                                   Windows PowerShell 配置 Codex CLI
   bash install.sh --claude-code      配置 Claude Code（工具 + 全局规范）
   bash install.sh --codex            配置 Codex CLI（squeez + 全局 AGENTS.md 规范）
+  bash install.sh --ridgecode        配置 RidgeCode（全局 ~/.ridge/AGENTS.md 规范）
   bash install.sh --cursor           为当前项目写入 .cursorrules
   bash install.sh --aider            配置 Aider（CONVENTIONS + diff 模式）
   bash install.sh --project [路径]   为指定项目注入 CLAUDE.md 规范
