@@ -46,11 +46,23 @@ pnpm test                      # 全量自检
 pnpm token:usage --all         # 汇总本机 Claude/Codex 服务端真实 usage
 pnpm token:count README.md     # 粗估文件 Token，仅供快速比较
 pnpm cache:check --strict before.txt after.txt  # 验证两次 prompt 前缀逐字节一致
+pnpm cache:lint config/claude-md.template       # 静态文件缓存杀手检查
 pnpm pack:repo                 # 打包瘦身代码库并实测前后 token 差（L2，需联网）
 <某长输出命令> 2>&1 | squeez    # 手动压缩任意终端输出
 ```
 
-`token-usage` 只读 JSONL 的 usage 字段，不输出对话正文。`prompt-prefix-check` 以两次快照的真实公共前缀与 SHA-256 判定稳定性；日期、UUID 等固定字面不再被误判为必然破坏缓存。
+`token-usage` 只读 JSONL 的 usage 字段，不输出对话正文。`prompt-prefix-check` 以两次快照的真实公共前缀与 SHA-256 判定稳定性。`cache-lint` 查静态文件里易抖动的日期/UUID 等字面。
+
+### 同任务装前/装后对比（真实 usage）
+
+```bash
+token-usage --all --json > before.json   # 或指定日志目录
+# …跑同一任务集…
+token-usage --all --json > after.json
+pnpm token:delta before.json after.json  # 打印各字段差值；负数为节省
+```
+
+正确率须另测；delta 只报 token 量，不作收益承诺。
 
 ---
 
@@ -68,16 +80,19 @@ pnpm pack:repo                 # 打包瘦身代码库并实测前后 token 差�
 
 ## 📦 核心工具链
 
-| 工具 | 职责 | 节省幅度 | 状态 |
+| 工具 | 职责 | 节省类型 | 状态 |
 |------|------|---------|------|
-| **squeez** (`bin/squeez`) | 终端输出压缩器（去 ANSI、折叠重复、智能截断） | 73-97%（实测） | ✅ 内置 |
+| **squeez** | 终端输出压缩（去 ANSI、折叠重复、截断；错误行永留） | **确定性**（管道可复现） | ✅ 内置 |
 | **token-usage** | 聚合 Claude/Codex 服务端 usage | 真实计量 | ✅ 内置 |
-| **prompt-prefix-check** | 比较两次 prompt 的公共前缀与 hash | 确定性判定 | ✅ 内置 |
-| **repomix** | 跨模块全景的末位工具 | 以实际任务为准 | ✅ 集成 |
-| **terse/normal/audit** | 按任务风险分配输出语义预算 | 以 usage 为准 | ✅ 内置 |
-| **Ponytail** | YAGNI、复用优先、最小可维护 diff | 以真实 diff/usage 为准 | ✅ 内置 |
-| **tamp** | API 代理输入去重（`--openai-compat` 指引） | 50% | ⚠️ 高级 |
-| **LLMLingua** | 上下文压缩（Python，重依赖） | 2x-20x | ⏳ 规划 |
+| **usage-delta** | 两次 usage JSON 快照差 | 真实计量辅助 | ✅ 内置 |
+| **prompt-prefix-check** | 两次 prompt 前缀/hash 比较 | **确定性** | ✅ 内置 |
+| **cache-lint** | 静态文件缓存杀手扫描 | **确定性** | ✅ 内置 |
+| **repomix** / pack-repo | 跨模块全景末位打包 | 视仓库（可反增） | ✅ 集成 |
+| **terse/normal/audit** + 文言/Caveman | 输出语义预算 | **行为性**（依模型遵从） | ✅ 内置 |
+| **Ponytail** | 少写码 / 最小 diff | **行为性** | ✅ 内置 |
+| **tamp** | API 输入去重（`--openai-compat` 指引） | 外部工具 | ⚠️ 可选 |
+
+> **确定性** = 本机管道/脚本可复现；**行为性** = 依赖模型是否遵守注入规范，须用 usage+正确率同任务对照。LLMLingua 等重依赖压缩**不计划内置**（与轻量定位冲突）。
 
 ---
 
@@ -106,10 +121,19 @@ Claude Code 与 Codex 将共同采用检索优先上下文、三级输出预算�
 | normal | 用户说“白话模式”/`normal mode` | 完整清晰，仍去赘述 |
 | audit | 安全、破坏性操作、迁移、审计、代码审查 | 风险、证据、验证完整保留 |
 
-- 中文采用现代技术骨架体；不用生僻古字换取表面字符减少
+- 中文默认文言电报体（微言大义）；说「白话模式」可切 normal
 - 代码、命令、错误、路径、URL 100% 原样
 
 不想默认启用？删除全局文件 token-saver 标记块内的「输出语义预算」小节即可。
+
+### 卸载
+
+```bash
+bash install.sh --uninstall
+# 或: powershell -ExecutionPolicy Bypass -File .\install.ps1 --uninstall
+```
+
+从 `*.token-saver.bak` 恢复已改配置，并移除 Claude reminder 文件。`~/.local/bin` 下的 squeez 等工具需手动删除。
 
 ### 代码建造精简（Ponytail 协议，默认已启用）
 
@@ -183,6 +207,7 @@ SQUEEZ_MAX_LINES=200    # 超过此行数才截断（默认 200）
 SQUEEZ_HEAD=40          # 截断时保留的开头行数
 SQUEEZ_TAIL=40          # 截断时保留的结尾行数
 SQUEEZ_ERR_CONTEXT=2    # 错误行上下文保留行数（错误行永远保留）
+SQUEEZ_JSON_MAX=0       # >0 时截断超长单行 JSON（以 { 或 [ 开头）；默认关
 ```
 
 ### 本地 Token 计数器
@@ -213,22 +238,15 @@ prompt-prefix-check --min-prefix 4096 first.txt second.txt
 
 ```
 token-saver/
-├── install.sh                        # 一键安装脚本（幂等，自动备份）
+├── install.sh / install.ps1          # 一键安装（幂等备份；--uninstall 可回滚）
 ├── bin/
-│   ├── squeez                        # 终端输出压缩器（bash + awk，零依赖）
-│   ├── token-count.mjs               # 本地 Token 粗估器
-│   ├── token-usage.mjs               # Claude/Codex 服务端 usage 聚合
-│   └── prompt-prefix-check.mjs       # prompt 前缀确定性比较
-├── config/
-│   ├── claude-md.template            # Claude Code / Codex 五项全局规范
-│   ├── cursorrules.template          # Cursor 规范
-│   └── aider-conventions.template    # Aider CONVENTIONS
-├── bench/
-│   └── run.sh                        # Token 节省基准（真实可跑，含承诺校验）
-├── tests/
-│   └── test-squeez.sh                # 自检（squeez + 安装器幂等性）
-├── package.json
-├── README.md
+│   ├── squeez                        # 终端压缩（bash+awk）
+│   ├── token-count.mjs / token-usage.mjs / usage-delta.mjs
+│   ├── prompt-prefix-check.mjs / cache-lint.mjs
+│   └── pack-repo.sh
+├── config/                           # 各平台注入模板 + reminder hook
+├── bench/run.sh                      # 本地可复现基准
+├── tests/test-squeez.sh              # 全量自检
 └── LICENSE                           # Apache 2.0
 ```
 
@@ -253,47 +271,33 @@ token-saver/
 
 #### Layer 4: 输出语义预算
 - 默认 terse；教学 normal；安全/迁移/审查 audit
-- 中文用现代技术骨架体；代码与报错原样
+- 中文文言电报体 / 英文 Caveman；代码与报错原样
 
-#### Layer 5: 真实计量
-- `token-usage` 汇总 Claude/Codex 服务端 usage
-- 各层收益不相加；同任务前后比较总量与正确率
+#### Layer 5: 最小建造 + 真实计量
+- Ponytail 约束代码增量；`token-usage` / `usage-delta` 做同任务对照
 
 ---
 
-## 🔌 集成第三方工具
+## 🔌 适配平台
 
-### 已支持
-
-- ✅ Claude Code (官方支持)
-- ✅ Cursor IDE
-- ✅ Aider AI
-- ✅ OpenAI API 兼容端点
-- ✅ Anthropic Claude API
-- ✅ DashScope (阿里云)
-- ✅ OpenRouter
-
-### 计划支持
-
-- ⏳ Gemini API
-- ⏳ LLaMA 本地部署
-- ⏳ Ollama
+- ✅ Claude Code · Codex · Cursor · Aider · RidgeCode
+- ✅ OpenAI 兼容端点指引（`--openai-compat`，含可选 tamp）
+- 运行时 JSON/RAG 极重：可**并列** [Headroom](https://github.com/headroomlabs-ai/headroom)（`headroom wrap`），非本仓依赖
 
 ---
 
 ## ⚙️ 环境变量
 
 ```bash
-# 安装器
-TOKEN_SAVER_BIN=~/.local/bin   # squeez 安装目录
-CLAUDE_CONFIG_DIR=~/.claude    # Claude 配置目录
-CODEX_HOME=~/.codex            # Codex 配置目录
+TOKEN_SAVER_BIN=~/.local/bin
+CLAUDE_CONFIG_DIR=~/.claude
+CODEX_HOME=~/.codex
 
-# squeez 压缩策略
 SQUEEZ_MAX_LINES=200
 SQUEEZ_HEAD=40
 SQUEEZ_TAIL=40
 SQUEEZ_ERR_CONTEXT=2
+SQUEEZ_JSON_MAX=0
 ```
 
 ---
@@ -330,9 +334,8 @@ pnpm test         # 运行自检（无其他依赖）
 
 - [claudioemmanuel/squeez](https://github.com/claudioemmanuel/squeez) — 终端压缩
 - [yamadashy/repomix](https://github.com/yamadashy/repomix) — 代码打包
-- [microsoft/LLMLingua](https://github.com/microsoft/LLMLingua) — 上下文压缩
 - [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) — terse English 灵感
-- [sliday/tamp](https://github.com/sliday/tamp) — API 代理
+- [sliday/tamp](https://github.com/sliday/tamp) — API 代理（可选）
 - [flightlesstux/prompt-caching](https://github.com/flightlesstux/prompt-caching) — 缓存机制
 
 ---

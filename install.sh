@@ -59,12 +59,12 @@ install_squeez() {
 
 install_node_tools() {
     if ! command -v node >/dev/null 2>&1; then
-        echo "  ⚠️  未找到 node，跳过 token-usage / prompt-prefix-check"
+        echo "  ⚠️  未找到 node，跳过 token-usage / prompt-prefix-check / cache-lint / usage-delta"
         return
     fi
     mkdir -p "$BIN_DIR"
     local name win_node win_script
-    for name in token-usage prompt-prefix-check; do
+    for name in token-usage prompt-prefix-check cache-lint usage-delta; do
         cp "$ROOT/bin/$name.mjs" "$BIN_DIR/$name"
         chmod +x "$BIN_DIR/$name"
         echo "  ✅ $name → $BIN_DIR/$name"
@@ -80,6 +80,40 @@ install_node_tools() {
             echo "  ✅ $name.cmd 垫片（PowerShell/CMD 可用）"
         fi
     done
+}
+
+# 从 *.token-saver.bak 恢复已知路径；不删 BIN_DIR 工具（可手动 rm）
+uninstall_token_saver() {
+    echo "▶ 卸载 Token Saver 注入（恢复备份）..."
+    local f restored=0
+    for f in \
+        "$CLAUDE_DIR/CLAUDE.md" \
+        "$CLAUDE_DIR/settings.json" \
+        "${CODEX_HOME:-$HOME/.codex}/AGENTS.md" \
+        "$HOME/.ridge/AGENTS.md" \
+        "$HOME/.grok/AGENTS.md" \
+        "$PWD/.cursorrules" \
+        "$PWD/CLAUDE.md"
+    do
+        if [ -f "$f.token-saver.bak" ]; then
+            mv -f "$f.token-saver.bak" "$f"
+            echo "  ✅ 已恢复: $f"
+            restored=1
+        fi
+    done
+    rm -f "$CLAUDE_DIR/token-saver-reminder.md" \
+          "$CLAUDE_DIR/token-saver-reminder-hook.mjs" \
+          "$CLAUDE_DIR/token-saver-cache-hook.mjs"
+    if [ -d "$HOME/.token-saver" ]; then
+        rm -rf "$HOME/.token-saver"
+        echo "  ✅ 已移除 ~/.token-saver"
+        restored=1
+    fi
+    if [ "$restored" = "0" ]; then
+        echo "  ℹ️  未找到 .token-saver.bak；可能从未安装或备份已用。"
+    fi
+    echo "  ℹ️  工具二进制仍在 ${BIN_DIR:-$HOME/.local/bin}（squeez 等），需删请手动 rm。"
+    echo "完成卸载注入。"
 }
 
 install_tools() {
@@ -123,6 +157,12 @@ install_codex() {
     inject_block "${CODEX_HOME:-$HOME/.codex}/AGENTS.md" "$ROOT/config/claude-md.template"
 }
 
+install_grok() {
+    echo "▶ 为 Grok CLI 配置..."
+    # 全局规则：~/.grok/AGENTS.md（Grok 文档：Global rules apply to all projects）
+    inject_block "$HOME/.grok/AGENTS.md" "$ROOT/config/claude-md.template"
+}
+
 echo "🗜️ Token Saver 安装向导"
 echo "========================"
 
@@ -151,21 +191,28 @@ case "${1:-}" in
         ;;
     --ridgecode)
         echo "▶ 为 RidgeCode 配置..."
-        inject_block "$HOME/.ridge/AGENTS.md" "$ROOT/config/ridgecode.template"
+        # 与 Claude/Codex/Grok 同一套完整规范（含文言 + Ponytail）；强模型一致
+        inject_block "$HOME/.ridge/AGENTS.md" "$ROOT/config/claude-md.template"
         echo ""
-        echo "完成！RidgeCode 启动时将 ~/.ridge/AGENTS.md 作为全局规则注入 system prompt。"
-        echo "（需含全局规则读取的 ridge-code 版本；弱模型友好：不含文言协议，只压结构。）"
+        echo "完成！RidgeCode 将 ~/.ridge/AGENTS.md 作全局规则（与 Claude/Codex/Grok 同模板）。"
+        ;;
+    --grok)
+        install_tools
+        install_grok
+        echo ""
+        echo "完成！Grok 将读取 ~/.grok/AGENTS.md 作为全局规则（重启 Grok 会话后生效）。"
         ;;
     --cursor)
         echo "▶ 为 Cursor 配置（当前目录: $PWD）..."
-        inject_block "$PWD/.cursorrules" "$ROOT/config/cursorrules.template"
+        inject_block "$PWD/.cursorrules" "$ROOT/config/claude-md.template"
         echo ""
-        echo "完成！在目标项目根目录运行本命令可为其他项目配置。"
+        echo "完成！在目标项目根目录运行本命令可为其他项目配置（与全局同模板）。"
         ;;
     --aider)
         echo "▶ 为 Aider 配置..."
         mkdir -p "$HOME/.token-saver"
-        cp "$ROOT/config/aider-conventions.template" "$HOME/.token-saver/CONVENTIONS.md"
+        # 与 Claude/Codex/Grok/Ridge 同内容，仅落点为 CONVENTIONS.md
+        cp "$ROOT/config/claude-md.template" "$HOME/.token-saver/CONVENTIONS.md"
         echo "  ✅ 规范 → ~/.token-saver/CONVENTIONS.md"
         if [ ! -f "$HOME/.aider.conf.yml" ]; then
             printf 'read: ["~/.token-saver/CONVENTIONS.md"]\nedit-format: diff\n' > "$HOME/.aider.conf.yml"
@@ -192,7 +239,12 @@ case "${1:-}" in
 2. 代码库瘦身:          npx -y repomix
 3. Prompt 缓存锚定:     静态内容（system/tools/文档）在前，动态对话在后，
                         静态区严禁时间戳等动态变量。
+4. 可选运行时代理:      工具 JSON/RAG 极重时可并列安装 Headroom（headroom wrap），
+                        与本仓规范层正交，非本仓依赖。
 EOF
+        ;;
+    --uninstall)
+        uninstall_token_saver
         ;;
     --help)
         cat << 'HELP'
@@ -207,17 +259,21 @@ Token Saver 一键安装
   bash install.sh --claude-code      配置 Claude Code（工具 + 全局规范）
   bash install.sh --codex            配置 Codex CLI（squeez + 全局 AGENTS.md 规范）
   bash install.sh --ridgecode        配置 RidgeCode（全局 ~/.ridge/AGENTS.md 规范）
+  bash install.sh --grok             配置 Grok CLI（squeez + 全局 ~/.grok/AGENTS.md）
   bash install.sh --cursor           为当前项目写入 .cursorrules
   bash install.sh --aider            配置 Aider（CONVENTIONS + diff 模式）
   bash install.sh --project [路径]   为指定项目注入 CLAUDE.md 规范
   bash install.sh --openai-compat    打印通用 API 端点优化指引
+  bash install.sh --uninstall        从 *.token-saver.bak 恢复并移除 reminder
   bash install.sh --help             显示此帮助
 
 环境变量:
-  TOKEN_SAVER_BIN     squeez 安装目录 (默认 ~/.local/bin)
+  TOKEN_SAVER_BIN     工具安装目录 (默认 ~/.local/bin)
   CLAUDE_CONFIG_DIR   Claude 配置目录 (默认 ~/.claude)
+  CODEX_HOME          Codex 配置目录 (默认 ~/.codex)
 
 所有写入均幂等（重复运行只更新标记块），首次修改前自动备份 *.token-saver.bak。
+卸载: bash install.sh --uninstall（或 powershell -File install.ps1 --uninstall）
 HELP
         ;;
     *)

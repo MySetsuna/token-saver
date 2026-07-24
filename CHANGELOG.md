@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.3.1 (2026-07-24)
+
+- **规范各端一致**：RidgeCode / Cursor / Aider 改用与 Claude/Codex/Grok 同一 `claude-md.template`（含文言）；删除弱模型精简模板 `ridgecode`/`cursorrules`/`aider-conventions`
+- 新增 `--grok` 安装入口（`~/.grok/AGENTS.md`）
+
+## v1.3.0 (2026-07-24)
+
+兑现文档承诺、压注入体积、补计量与回滚，**不**引入代理/重依赖。
+
+### 新功能 / 兑现
+- **cache-lint（CLI）**：`bin/cache-lint.mjs` 扫日期/时钟/UUID/长 hex/家目录/`Date.now`；`--fix [--write]` + 备份；入 `pnpm test` 与安装工具链。**不**恢复 PreToolUse 缓存 hook（产品已弃用，仅离线检查）
+- **usage-delta**：两次 `token-usage --json` 快照差，便于同任务装前/装后对照
+- **squeez**：扩展错误信号（TypeError/npm ERR/ENOENT 等）；可选 `SQUEEZ_JSON_MAX` 截断超长单行 JSON（默认关）
+- **install --uninstall**：从 `*.token-saver.bak` 恢复并移除 reminder
+
+### 精简与诚实
+- **claude-md.template** 压缩篇幅（少例多规），每会话注入 token 税下降
+- README：确定性 vs 行为性分层；LLMLingua 标为不计划内置；卸载与 usage 对比步骤
+- CLAUDE.md 与实现一致：无 cache-lint PreToolUse hook
+
 ## v1.2.0 (2026-07-17)
 
 新增两层确定性能力与建造精简层，L2/L3 从「劝导」升为「可测/可强制」，全部数字诚实分级、无臆造。
