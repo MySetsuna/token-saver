@@ -7,6 +7,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="${TOKEN_SAVER_BIN:-$HOME/.local/bin}"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
+GROK_DIR="${GROK_CONFIG_DIR:-$HOME/.grok}"
 MARK_BEGIN="<!-- token-saver:begin -->"
 MARK_END="<!-- token-saver:end -->"
 
@@ -88,10 +90,9 @@ uninstall_token_saver() {
     local f restored=0
     for f in \
         "$CLAUDE_DIR/CLAUDE.md" \
-        "$CLAUDE_DIR/settings.json" \
-        "${CODEX_HOME:-$HOME/.codex}/AGENTS.md" \
+        "$CODEX_DIR/AGENTS.md" \
         "$HOME/.ridge/AGENTS.md" \
-        "$HOME/.grok/AGENTS.md" \
+        "$GROK_DIR/AGENTS.md" \
         "$PWD/.cursorrules" \
         "$PWD/CLAUDE.md"
     do
@@ -101,9 +102,41 @@ uninstall_token_saver() {
             restored=1
         fi
     done
+    for f in "$CLAUDE_DIR/settings.json" "$CODEX_DIR/hooks.json"; do
+        if [ -f "$f.token-saver.bak" ]; then
+            mv -f "$f.token-saver.bak" "$f"
+            echo "  ✅ 已恢复: $f"
+            restored=1
+        elif [ -f "$f" ] && command -v node >/dev/null 2>&1; then
+            node -e '
+                const fs = require("fs"), p = process.argv[1];
+                const s = JSON.parse(fs.readFileSync(p, "utf8"));
+                if (s.hooks?.UserPromptSubmit) {
+                    s.hooks.UserPromptSubmit = s.hooks.UserPromptSubmit.filter((h) => !JSON.stringify(h).includes("token-saver-reminder"));
+                    if (!s.hooks.UserPromptSubmit.length) delete s.hooks.UserPromptSubmit;
+                }
+                if (s.hooks && !Object.keys(s.hooks).length) delete s.hooks;
+                if (!Object.keys(s).length) fs.unlinkSync(p);
+                else fs.writeFileSync(p, JSON.stringify(s, null, 2) + "\n");
+            ' "$f"
+            restored=1
+        fi
+    done
+    if [ -f "$GROK_DIR/hooks/token-saver.json.token-saver.bak" ]; then
+        mv -f "$GROK_DIR/hooks/token-saver.json.token-saver.bak" "$GROK_DIR/hooks/token-saver.json"
+        echo "  ✅ 已恢复: $GROK_DIR/hooks/token-saver.json"
+        restored=1
+    elif [ -f "$GROK_DIR/hooks/token-saver.json" ]; then
+        rm -f "$GROK_DIR/hooks/token-saver.json"
+        restored=1
+    fi
     rm -f "$CLAUDE_DIR/token-saver-reminder.md" \
           "$CLAUDE_DIR/token-saver-reminder-hook.mjs" \
-          "$CLAUDE_DIR/token-saver-cache-hook.mjs"
+          "$CLAUDE_DIR/token-saver-cache-hook.mjs" \
+          "$CODEX_DIR/token-saver-reminder.md" \
+          "$CODEX_DIR/token-saver-reminder-hook.mjs" \
+          "$GROK_DIR/token-saver-reminder.md" \
+          "$GROK_DIR/token-saver-grok-hook.mjs"
     if [ -d "$HOME/.token-saver" ]; then
         rm -rf "$HOME/.token-saver"
         echo "  ✅ 已移除 ~/.token-saver"
@@ -154,13 +187,61 @@ install_claude() {
 
 install_codex() {
     echo "▶ 为 Codex CLI 配置..."
-    inject_block "${CODEX_HOME:-$HOME/.codex}/AGENTS.md" "$ROOT/config/claude-md.template"
+    inject_block "$CODEX_DIR/AGENTS.md" "$ROOT/config/claude-md.template"
+    cp "$ROOT/config/reminder.md" "$CODEX_DIR/token-saver-reminder.md"
+    cp "$ROOT/config/reminder-hook.mjs" "$CODEX_DIR/token-saver-reminder-hook.mjs"
+    if command -v node >/dev/null 2>&1; then
+        local hook_script="$CODEX_DIR/token-saver-reminder-hook.mjs" windows="false"
+        if is_windows && command -v cygpath >/dev/null 2>&1; then
+            hook_script="$(cygpath -w "$hook_script")"
+            windows="true"
+        fi
+        [ -f "$CODEX_DIR/hooks.json" ] && [ ! -f "$CODEX_DIR/hooks.json.token-saver.bak" ] \
+            && cp "$CODEX_DIR/hooks.json" "$CODEX_DIR/hooks.json.token-saver.bak"
+        node -e '
+            const fs = require("fs"), p = process.argv[1] + "/hooks.json";
+            let s = {};
+            if (fs.existsSync(p)) s = JSON.parse(fs.readFileSync(p, "utf8"));
+            s.hooks = s.hooks || {};
+            const arr = (s.hooks.UserPromptSubmit || []).filter((hook) => !JSON.stringify(hook).includes("token-saver-reminder"));
+            const command = "node " + JSON.stringify(process.argv[2]);
+            const spec = { type: "command", command };
+            if (process.argv[3] === "true") spec.commandWindows = command;
+            arr.push({ hooks: [spec] });
+            s.hooks.UserPromptSubmit = arr;
+            fs.writeFileSync(p, JSON.stringify(s, null, 2) + "\n");
+        ' "$CODEX_DIR" "$hook_script" "$windows"
+        echo "  ✅ 单行抗漂移 hook → hooks.json (UserPromptSubmit)"
+        echo "  ⚠️  首次启用须在 Codex 运行 /hooks 审核并信任该命令"
+    else
+        echo "  ⚠️  未找到 node，跳过 Codex hook 配置（全局规范仍生效）"
+    fi
 }
 
 install_grok() {
     echo "▶ 为 Grok CLI 配置..."
     # 全局规则：~/.grok/AGENTS.md（Grok 文档：Global rules apply to all projects）
-    inject_block "$HOME/.grok/AGENTS.md" "$ROOT/config/claude-md.template"
+    inject_block "$GROK_DIR/AGENTS.md" "$ROOT/config/claude-md.template"
+    cp "$ROOT/config/reminder.md" "$GROK_DIR/token-saver-reminder.md"
+    cp "$ROOT/config/grok-drift-hook.mjs" "$GROK_DIR/token-saver-grok-hook.mjs"
+    if command -v node >/dev/null 2>&1; then
+        local hook_script="$GROK_DIR/token-saver-grok-hook.mjs"
+        if is_windows && command -v cygpath >/dev/null 2>&1; then
+            hook_script="$(cygpath -w "$hook_script")"
+        fi
+        mkdir -p "$GROK_DIR/hooks"
+        [ -f "$GROK_DIR/hooks/token-saver.json" ] && [ ! -f "$GROK_DIR/hooks/token-saver.json.token-saver.bak" ] \
+            && cp "$GROK_DIR/hooks/token-saver.json" "$GROK_DIR/hooks/token-saver.json.token-saver.bak"
+        node -e '
+            const fs = require("fs"), p = process.argv[1];
+            const command = "node " + JSON.stringify(process.argv[2]);
+            const s = { hooks: { Stop: [{ hooks: [{ type: "command", command }] }] } };
+            fs.writeFileSync(p, JSON.stringify(s, null, 2) + "\n");
+        ' "$GROK_DIR/hooks/token-saver.json" "$hook_script"
+        echo "  ✅ 低频抗漂移纠偏 hook → hooks/token-saver.json (Stop)"
+    else
+        echo "  ⚠️  未找到 node，跳过 Grok hook 配置（全局规范仍生效）"
+    fi
 }
 
 echo "🗜️ Token Saver 安装向导"
@@ -171,8 +252,9 @@ case "${1:-}" in
         install_tools
         install_claude
         install_codex
+        install_grok
         echo ""
-        echo "完成！重启 Claude Code 与 Codex 后生效。"
+        echo "完成！重启 Claude Code、Codex 与 Grok 后生效；Codex 请用 /hooks 信任一次。"
         ;;
     --claude-code)
         install_tools
@@ -187,7 +269,7 @@ case "${1:-}" in
         install_tools
         install_codex
         echo ""
-        echo "完成！重启 Codex 后五项 Token Saver 规范生效。"
+        echo "完成！重启 Codex 后生效；首次请用 /hooks 审核并信任 hook。"
         ;;
     --ridgecode)
         echo "▶ 为 RidgeCode 配置..."
@@ -200,7 +282,7 @@ case "${1:-}" in
         install_tools
         install_grok
         echo ""
-        echo "完成！Grok 将读取 ~/.grok/AGENTS.md 作为全局规则（重启 Grok 会话后生效）。"
+        echo "完成！Grok 将读取全局规范，并以 Stop hook 仅在检出明显漂移时纠偏。"
         ;;
     --cursor)
         echo "▶ 为 Cursor 配置（当前目录: $PWD）..."
@@ -252,14 +334,14 @@ Token Saver 一键安装
 
 用法:
   powershell -ExecutionPolicy Bypass -File .\install.ps1
-                                  Windows PowerShell 一键配置 Claude Code + Codex
-  bash install.sh --all             配置 Claude Code + Codex（推荐）
+                                  Windows PowerShell 一键配置 Claude Code + Codex + Grok
+  bash install.sh --all             配置 Claude Code + Codex + Grok（推荐）
   powershell -ExecutionPolicy Bypass -File .\install.ps1 --codex
                                   Windows PowerShell 配置 Codex CLI
   bash install.sh --claude-code      配置 Claude Code（工具 + 全局规范）
-  bash install.sh --codex            配置 Codex CLI（squeez + 全局 AGENTS.md 规范）
+  bash install.sh --codex            配置 Codex CLI（规范 + UserPromptSubmit hook）
   bash install.sh --ridgecode        配置 RidgeCode（全局 ~/.ridge/AGENTS.md 规范）
-  bash install.sh --grok             配置 Grok CLI（squeez + 全局 ~/.grok/AGENTS.md）
+  bash install.sh --grok             配置 Grok CLI（规范 + 低频 Stop 纠偏 hook）
   bash install.sh --cursor           为当前项目写入 .cursorrules
   bash install.sh --aider            配置 Aider（CONVENTIONS + diff 模式）
   bash install.sh --project [路径]   为指定项目注入 CLAUDE.md 规范
@@ -271,6 +353,7 @@ Token Saver 一键安装
   TOKEN_SAVER_BIN     工具安装目录 (默认 ~/.local/bin)
   CLAUDE_CONFIG_DIR   Claude 配置目录 (默认 ~/.claude)
   CODEX_HOME          Codex 配置目录 (默认 ~/.codex)
+  GROK_CONFIG_DIR     Grok 配置目录 (默认 ~/.grok)
 
 所有写入均幂等（重复运行只更新标记块），首次修改前自动备份 *.token-saver.bak。
 卸载: bash install.sh --uninstall（或 powershell -File install.ps1 --uninstall）

@@ -2,7 +2,7 @@
 
 一个开源的 LLM Token 节省方案：压终端噪声、按需取上下文、稳定 prompt 前缀、约束输出与代码增量，并用 Claude Code / Codex 服务端 usage 验证真实收益。
 
-> **适配**: Claude Code / Codex / Aider / Cursor
+> **适配**: Claude Code / Codex / Grok Build / Aider / Cursor
 > **开箱即用**: 一键安装脚本，无需繁琐配置
 > **诚实计量**: usage 为实测；字符估算与人工示例不作收益承诺
 
@@ -17,7 +17,7 @@
 git clone https://github.com/MySetsuna/token-saver.git
 cd token-saver
 
-# Windows PowerShell：一键接入 Claude Code + Codex（默认）
+# Windows PowerShell：一键接入 Claude Code + Codex + Grok（默认）
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 # Windows PowerShell：或指定 Codex / Cursor / Aider
@@ -25,7 +25,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 --codex
 powershell -ExecutionPolicy Bypass -File .\install.ps1 --cursor
 powershell -ExecutionPolicy Bypass -File .\install.ps1 --aider
 
-# macOS / Linux / Git Bash：一键接入 Claude Code + Codex
+# macOS / Linux / Git Bash：一键接入 Claude Code + Codex + Grok
 bash install.sh --all
 
 # macOS / Linux / Git Bash：或接入 Codex CLI / Cursor / Aider
@@ -51,7 +51,7 @@ pnpm pack:repo                 # 打包瘦身代码库并实测前后 token 差�
 <某长输出命令> 2>&1 | squeez    # 手动压缩任意终端输出
 ```
 
-`token-usage` 只读 JSONL 的 usage 字段，不输出对话正文。`prompt-prefix-check` 以两次快照的真实公共前缀与 SHA-256 判定稳定性。`cache-lint` 查静态文件里易抖动的日期/UUID 等字面。
+`token-usage` 只读 JSONL 的 usage 字段，不输出对话正文；可列逐会话账本、Context Floor proxy 与预算闸。`prompt-prefix-check` 以两次快照的真实公共前缀与 SHA-256 判定稳定性。`cache-lint` 查静态文件里易抖动的日期/UUID 等字面。
 
 ### 同任务装前/装后对比（真实 usage）
 
@@ -83,7 +83,7 @@ pnpm token:delta before.json after.json  # 打印各字段差值；负数为节�
 | 工具 | 职责 | 节省类型 | 状态 |
 |------|------|---------|------|
 | **squeez** | 终端输出压缩（去 ANSI、折叠重复、截断；错误行永留） | **确定性**（管道可复现） | ✅ 内置 |
-| **token-usage** | 聚合 Claude/Codex 服务端 usage | 真实计量 | ✅ 内置 |
+| **token-usage** | 聚合 Claude/Codex 服务端 usage；逐会话指标与预算退出码 | 真实计量 | ✅ 内置 |
 | **usage-delta** | 两次 usage JSON 快照差 | 真实计量辅助 | ✅ 内置 |
 | **prompt-prefix-check** | 两次 prompt 前缀/hash 比较 | **确定性** | ✅ 内置 |
 | **cache-lint** | 静态文件缓存杀手扫描 | **确定性** | ✅ 内置 |
@@ -98,10 +98,10 @@ pnpm token:delta before.json after.json  # 打印各字段差值；负数为节�
 
 ## 🚀 详细配置
 
-### 场景 1: Claude Code + Codex 一键配置
+### 场景 1: Claude Code + Codex + Grok 一键配置
 
 ```bash
-# 安装三个工具，并注入 ~/.claude/CLAUDE.md 与 ~/.codex/AGENTS.md
+# 安装工具、三端完整规范与各自抗漂移 hook
 bash install.sh --all
 
 # 验证安装成功
@@ -109,7 +109,29 @@ echo test | squeez
 token-usage --all
 ```
 
-Claude Code 与 Codex 将共同采用检索优先上下文、三级输出预算、真实 usage 计量及确定性 prompt 前缀验证。Claude 的每回合提醒仅一行；旧 `bash` reminder 与字面缓存 hook 会自动迁移移除。
+三端共同采用检索优先上下文、三级输出预算、真实 usage 计量及确定性 prompt 前缀验证。旧 `bash` reminder 与字面缓存 hook 会自动迁移移除。Codex 首次须运行 `/hooks` 审核并信任安装命令。
+
+### 抗漂移：为何三端机制不同
+
+`CLAUDE.md` / `AGENTS.md` 是静态规则真相源，但“已在上下文中”不等于模型在长会话中始终同等重视：对话增长、密集工具输出及 context compaction 后，输出预算、语言路由与 Ponytail 等行为约束可能被当前任务稀释。项目在 v1.1.1 曾实测长会话人格逐渐失效，故先为 Claude 接入 `UserPromptSubmit`。
+
+Claude 与 Codex 的 hook 不重放整份模板，只在每次用户提交 prompt 时以 `additionalContext` 注入 `config/reminder.md` 的单行摘要：
+
+- 完整规则仍静置于前缀，避免每回合重复数百 token；
+- 单行重锚只恢复当前行为优先级，不修改用户 prompt、不阻断工具；
+- 提醒文件保持短小稳定，减少自身 token 税与前缀抖动。
+
+**原先 Claude 独有只因历史实现不对称，并非 Codex/Grok 不会漂移。** 现三端静态规则与抗漂移目标已对齐；受宿主 hook 语义所限，实现不同：
+
+| Agent | 静态完整规范 | 抗漂移机制 | 生效条件 |
+|---|---|---|---|
+| Claude Code | `~/.claude/CLAUDE.md` | `UserPromptSubmit` 单行重锚 | 安装即生效 |
+| Codex | `~/.codex/AGENTS.md` | `~/.codex/hooks.json` 的 `UserPromptSubmit` 单行重锚 | 首次 `/hooks` 审核信任 |
+| Grok Build | `~/.grok/AGENTS.md` | `~/.grok/hooks/token-saver.json` 的低频 `Stop` 纠偏 | 仅命中明确客套/续问漂移时回灌一次 |
+
+Grok 虽有 `UserPromptSubmit` 事件，但其被动 hook stdout 明确忽略，无法照搬每回合上下文注入。若改用无条件 `Stop` 回灌，每次会额外触发一轮模型推理，反损节省目标；故只以保守短语检测纠偏，且 `stopHookActive` 时退出，避免循环。此乃能力边界，不伪装成完全同构。
+
+官方机制：[Claude Code hooks](https://code.claude.com/docs/en/hooks#userpromptsubmit)、[Codex hooks](https://developers.openai.com/codex/config-advanced#hooks)、[Grok Build hooks](https://docs.x.ai/build/features/hooks)。
 
 ### 场景 2: 输出语义预算（默认已启用）
 
@@ -133,7 +155,7 @@ bash install.sh --uninstall
 # 或: powershell -ExecutionPolicy Bypass -File .\install.ps1 --uninstall
 ```
 
-从 `*.token-saver.bak` 恢复已改配置，并移除 Claude reminder 文件。`~/.local/bin` 下的 squeez 等工具需手动删除。
+从 `*.token-saver.bak` 恢复已改配置，并移除三端 reminder/hook 文件。`~/.local/bin` 下的 squeez 等工具需手动删除。
 
 ### 代码建造精简（Ponytail 协议，默认已启用）
 
@@ -146,7 +168,7 @@ bash install.sh --uninstall
 - 不做未经请求的抽象（无单实现的接口、单产物的工厂、恒定值的配置）
 - 最短可用 diff 取胜；改 bug 修根因（先 grep 全部调用方，共有函数处一次修好）
 - **绝不简化掉**：输入校验、防丢数据的错误处理、安全措施、无障碍基础、用户明确要求之物
-- Claude 每回合仅注入一行抗漂移提醒；说 `stop ponytail` 临时停用
+- Claude/Codex 每回合仅注入一行抗漂移提醒；Grok 只在明显漂移时纠偏；说 `stop ponytail` 临时停用
 
 ### 场景 3: 集成到 CI/CD 构建流水线
 
@@ -227,10 +249,19 @@ cat build.log | node bin/token-count.mjs
 token-usage --all                 # 自动读取 Claude/Codex 本机 JSONL，仅汇总 usage
 token-usage --claude --json       # 只看 Claude，机器可读
 token-usage ./captured-logs       # 汇总指定文件或目录
+token-usage --sessions ./captured-logs
+token-usage --max-cache-write 100000 --max-input-per-request 200000 ./captured-logs
+token-usage --cost-usd 4.14 --changed-lines 320 --quality-exit 0 ./captured-logs
 
 prompt-prefix-check --strict first.txt second.txt
 prompt-prefix-check --min-prefix 4096 first.txt second.txt
 ```
+
+`token-usage` 的 `accountedInput` 按供应商口径归一：Anthropic 的 direct/cache read/cache write 相加；OpenAI/Codex 的 cached tokens 已含于 input，不重复加。`cacheHitPct` 以 `cacheRead / accountedInput` 计算。高命中率不等于低成本，仍须看 cache read/write 绝对量与请求峰值。
+
+请求级指标只有日志含逐请求 usage 时才给值；Codex 仅有累计量时返回 `null`。若显式设置请求级预算而证据不可得，命令 fail closed（exit 1）。预算 flags 不设则保持报告模式。
+
+代码产出效率只在显式提供 `--cost-usd`、`--changed-lines`、`--quality-exit` 后形成完整证据；工具不从 output/reasoning tokens 推断代码行数、正确率或 token-saver 的因果收益。
 
 ---
 
@@ -280,7 +311,7 @@ token-saver/
 
 ## 🔌 适配平台
 
-- ✅ Claude Code · Codex · Cursor · Aider · RidgeCode
+- ✅ Claude Code · Codex · Grok Build · Cursor · Aider · RidgeCode
 - ✅ OpenAI 兼容端点指引（`--openai-compat`，含可选 tamp）
 - 运行时 JSON/RAG 极重：可**并列** [Headroom](https://github.com/headroomlabs-ai/headroom)（`headroom wrap`），非本仓依赖
 

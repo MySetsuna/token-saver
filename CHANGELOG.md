@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **token-usage 会话证据账本**：新增 `--sessions`，按 provider 正确归一 `accountedInput`，输出 cache hit/write、reasoning、Context Floor proxy 与逐请求峰值；只显文件名，不读/曝对话正文
+- **Context Budget 闸**：新增 `--min-cache-hit`、`--max-cache-write`、`--max-input-per-request`、`--max-cache-read-per-request`；越界 exit 1，请求数据不可得时 fail closed
+- **代码产出证据边界**：仅据显式 `--cost-usd`、`--changed-lines`、`--quality-exit` 计算；不从 reasoning/output token 猜代码量、质量或因果收益
+- Claude/Codex fixtures 覆盖独立缓存字段、cached-input 子集、Codex 累计量、逐请求峰值、零/不可得边界与预算退出码
+- **三端抗漂移对齐**：Claude/Codex 以 `UserPromptSubmit.additionalContext` 每回合单行重锚；Grok 因被动 hook stdout 不进入上下文，改用仅命中明确客套/续问时触发的 `Stop` 纠偏，避免每轮额外推理
+- `--all` 现安装 Claude Code、Codex 与 Grok；Codex hook 保留原配置且提示首次 `/hooks` 信任，三端 hook/reminder 均可卸载
+
 ## v1.3.1 (2026-07-24)
 
 - **规范各端一致**：RidgeCode / Cursor / Aider 改用与 Claude/Codex/Grok 同一 `claude-md.template`（含文言）；删除弱模型精简模板 `ridgecode`/`cursorrules`/`aider-conventions`

@@ -14,3 +14,5 @@
 | 轮次 | 合同 | 进度报告 | NotebookLM 指导 | 状态 |
 |---|---|---|---|---|
 | 0（初始化） | — | 2026-07-24 初始化 + Headroom 调研 | — | 调研结论：无产品代码采纳 |
+| 1 | `CONTRACT-iteration-1.md` | `2026-07-27-iteration-1.md` | `2026-07-27-notebooklm-guidance-1.md` | 完成：会话成本证据链与 Context Budget 闸 |
+| 2 | `CONTRACT-iteration-2.md` | — | — | 待执行：多样本、质量感知 Usage 回归实验 |

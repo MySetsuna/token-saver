@@ -2,6 +2,21 @@
 
 > 每轮迭代结束后在**顶部**追加一条。仅本地归档，不上传 NotebookLM。
 
+## 2026-07-27 iteration-1
+
+- 做了什么：
+  - 从《AI 编程会话成本与效率分析》提炼比例陷阱、Context Floor、预算止损与证据边界
+  - `token-usage` 新增 provider-correct `accountedInput`、`--sessions`、逐请求平均/峰值
+  - 新增四类预算 flags 与 0/1/2 退出码；请求证据不可得时 fail closed
+  - 代码产出效率只接受显式 cost / changed-lines / quality-exit 三证
+  - Claude/Codex fixtures、README、CHANGELOG、共享模板完成对账；`pnpm test` 全绿
+- 下一步：iteration 2 多样本、质量感知 Usage 回归实验
+- 触发的熔断：首测发现 Codex provider 被 spread 覆盖；一处修根因后全绿
+- NotebookLM 对抗：
+  - 驳回“pack-repo/人格模板缺失”等事实错误
+  - 不重复造 token-baseline / max-floor
+  - 将 baseline 建议升值为多样本 median/p95 + quality gate 合同
+
 ## 2026-07-24 iteration-optimize-1.3.0
 
 - 做了什么：

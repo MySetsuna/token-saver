@@ -4,6 +4,7 @@
 ## 真实计量
 - 讨论节省优先 `token-usage --all`；`token-count` 仅粗估，不作收益承诺。
 - 各层收益重叠不相加；同任务 baseline/优化后比输入、缓存读写、输出、总量与正确率。
+- 高命中率不等于低成本；长会话用 `token-usage --sessions` 看绝对缓存读写、Context Floor proxy 与请求峰值。代码性价比须显式成本、diff 与质量闸，勿从 reasoning/output 臆断。
 
 ## 上下文取用
 - 依序最小充分：`git diff/status` → CodeGraph 等符号/调用图（若有）→ `rg` → 精确行段。
